@@ -1,5 +1,12 @@
 # Pi Connect Speaker
 
+<p align="center">
+  <img alt="Python" src="https://img.shields.io/badge/Python-3.11+-3776AB?logo=python&logoColor=white">
+  <img alt="Raspberry Pi" src="https://img.shields.io/badge/Raspberry%20Pi-3B+-A22846?logo=raspberrypi&logoColor=white">
+  <img alt="Runtime" src="https://img.shields.io/badge/Runtime-no%20Node%20%2F%20no%20DB-168443">
+  <img alt="License" src="https://img.shields.io/badge/License-MIT-black">
+</p>
+
 Turn a Raspberry Pi into a Spotify Connect speaker with a web UI for settings.
 
 ## Requirements
