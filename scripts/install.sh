@@ -71,7 +71,6 @@ install_app() {
   chown -R "${APP_USER}:${APP_USER}" "${CONFIG_DIR}" "${CACHE_DIR}" "${DATA_DIR}"
 
   python3 -m venv "${INSTALL_DIR}/venv"
-  "${INSTALL_DIR}/venv/bin/python" -m pip install --upgrade pip
   "${INSTALL_DIR}/venv/bin/python" -m pip install "${REPO_DIR}"
 
   if [[ ! -f "${CONFIG_DIR}/config.toml" ]]; then
@@ -89,7 +88,7 @@ install_app() {
   systemctl enable "${APP_NAME}.service"
   systemctl enable "${APP_NAME}-librespot.service"
 
-  if [[ "${START_NOW:-0}" == "1" ]]; then
+  if [[ "${START_NOW:-1}" == "1" ]]; then
     systemctl start "${APP_NAME}.service"
     systemctl start "${APP_NAME}-librespot.service"
   fi
@@ -100,13 +99,6 @@ install_app
 
 cat <<EOF
 Installed ${APP_NAME}.
-
-Start now:
-  sudo systemctl start ${APP_NAME}.service
-  sudo systemctl start ${APP_NAME}-librespot.service
-
-Or install and start in one command:
-  sudo START_NOW=1 scripts/install.sh
 
 Check the installation:
   sudo -u ${APP_USER} ${INSTALL_DIR}/venv/bin/pi-connect-speaker-doctor

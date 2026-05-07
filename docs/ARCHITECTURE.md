@@ -29,6 +29,24 @@ Pi Connect Speaker is intentionally small.
 - Runtime has no third-party Python dependencies.
 - Config backups are created before overwriting an existing config.
 
+## Development
+
+```bash
+python3 -m venv .venv
+. .venv/bin/activate
+pip install -e .
+python -m unittest discover -s tests
+python -m compileall src
+```
+
+Run locally with a temporary config:
+
+```bash
+PCS_CONFIG=/tmp/pi-connect-speaker.toml python -m pi_connect_speaker
+```
+
+Do not run `scripts/install.sh` on your development machine unless it is the target Raspberry Pi.
+
 ## Boundaries
 
 The app does not implement Spotify playback itself. It only configures and supervises `librespot`.

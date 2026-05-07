@@ -76,6 +76,19 @@ Controls where profile TOML files are stored.
 
 Controls OAuth mode, cached username, access token, and extra arguments.
 
+## File Paths
+
+| Path | Purpose |
+| --- | --- |
+| `/etc/pi-connect-speaker/config.toml` | Active configuration |
+| `/etc/pi-connect-speaker/profiles` | Saved profiles |
+| `/etc/pi-connect-speaker/backups` | Automatic config backups |
+| `/var/cache/pi-connect-speaker` | Librespot audio/system cache |
+
+## Security
+
+The web UI defaults to `auth_mode = "none"` for trusted home networks. Do not expose port `8080` to the internet. For stricter use, set `web.host = "127.0.0.1"` or `web.auth_mode = "pin"`.
+
 ## Applying Changes
 
 Settings are saved immediately to TOML. Audio and Spotify Connect settings take effect after restarting `pi-connect-speaker-librespot.service`.

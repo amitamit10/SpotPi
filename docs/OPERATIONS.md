@@ -1,5 +1,15 @@
 # Operations
 
+## Install Options
+
+`scripts/install.sh` uses an existing `librespot` binary when available. Otherwise it tries the OS package, then falls back to building with Cargo.
+
+```bash
+sudo LIBRESPOT_INSTALL_MODE=existing scripts/install.sh
+sudo LIBRESPOT_INSTALL_MODE=apt     scripts/install.sh
+sudo LIBRESPOT_INSTALL_MODE=auto    scripts/install.sh
+```
+
 ## Services
 
 ```bash
