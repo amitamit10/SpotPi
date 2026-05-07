@@ -1,17 +1,17 @@
 [Unit]
-Description=Pi Connect Speaker Spotify Connect Engine
+Description=SpotPi Spotify Connect Engine
 Wants=network-online.target sound.target avahi-daemon.service
 After=network-online.target sound.target avahi-daemon.service
 
 [Service]
 Type=simple
-User=pi-connect-speaker
-Group=pi-connect-speaker
+User=spotpi
+Group=spotpi
 SupplementaryGroups=audio
-Environment=PCS_CONFIG=/etc/pi-connect-speaker/config.toml
+Environment=PCS_CONFIG=/etc/spotpi/config.toml
 Environment=PYTHONUNBUFFERED=1
 Environment=PATH=/usr/local/bin:/usr/bin:/bin
-ExecStart=/opt/pi-connect-speaker/venv/bin/pi-connect-speaker-librespot
+ExecStart=/opt/spotpi/venv/bin/spotpi-librespot
 Restart=always
 RestartSec=5
 StartLimitIntervalSec=60
@@ -25,7 +25,7 @@ ProtectSystem=full
 NoNewPrivileges=true
 LockPersonality=true
 RestrictRealtime=true
-ReadWritePaths=/etc/pi-connect-speaker /var/cache/pi-connect-speaker /var/lib/pi-connect-speaker
+ReadWritePaths=/etc/spotpi /var/cache/spotpi /var/lib/spotpi
 
 [Install]
 WantedBy=multi-user.target

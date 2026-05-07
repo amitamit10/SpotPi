@@ -37,7 +37,7 @@ class ApiError(Exception):
 
 
 class RequestHandler(BaseHTTPRequestHandler):
-    server_version = f"PiConnectSpeaker/{__version__}"
+    server_version = f"SpotPi/{__version__}"
 
     def do_GET(self) -> None:
         self.dispatch("GET")
@@ -79,7 +79,7 @@ class RequestHandler(BaseHTTPRequestHandler):
         web = config["web"]
         if web["auth_mode"] == "none":
             return
-        if web["auth_mode"] == "pin" and self.headers.get("X-Pi-Connect-Pin") == web["auth_pin"]:
+        if web["auth_mode"] == "pin" and self.headers.get("X-SpotPi-Pin") == web["auth_pin"]:
             return
         raise ApiError(HTTPStatus.UNAUTHORIZED, "Unauthorized")
 
@@ -188,5 +188,5 @@ def main() -> None:
     host = config["web"]["host"]
     port = int(config["web"]["port"])
     server = ThreadingHTTPServer((host, port), RequestHandler)
-    print(f"Pi Connect Speaker UI listening on http://{host}:{port}")
+    print(f"SpotPi UI listening on http://{host}:{port}")
     server.serve_forever()

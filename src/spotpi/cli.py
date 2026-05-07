@@ -13,7 +13,7 @@ from .librespot import build_librespot_args, redacted_args
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(prog="pi-connect-speaker")
+    parser = argparse.ArgumentParser(prog="spotpi")
     subparsers = parser.add_subparsers(dest="command", required=True)
     subparsers.add_parser("doctor", help="Run health checks")
     subparsers.add_parser("config-path", help="Print active config path")

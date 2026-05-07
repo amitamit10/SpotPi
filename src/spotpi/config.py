@@ -15,7 +15,7 @@ from typing import Any
 from .defaults import CONFIG_SCHEMA, DEFAULT_CONFIG, SECTION_LABELS, SECTION_ORDER
 
 CONFIG_PATH_ENV = "PCS_CONFIG"
-DEFAULT_CONFIG_PATH = "/etc/pi-connect-speaker/config.toml"
+DEFAULT_CONFIG_PATH = "/etc/spotpi/config.toml"
 
 
 class ConfigError(ValueError):
@@ -223,7 +223,7 @@ def validate_range(label: str, value: int | float, field: dict[str, Any]) -> int
 
 def dumps_toml(config: dict[str, Any]) -> str:
     lines: list[str] = [
-        "# Pi Connect Speaker configuration",
+        "# SpotPi configuration",
         "# Managed by the web UI. Edit carefully if changing by hand.",
         "",
     ]

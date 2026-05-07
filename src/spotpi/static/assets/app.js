@@ -35,7 +35,7 @@ async function api(path, options = {}) {
     if (response.status === 401) {
       const pin = window.prompt("PIN");
       if (pin) {
-        localStorage.setItem("piConnectPin", pin);
+        localStorage.setItem("spotpiPin", pin);
         return api(path, options);
       }
     }
@@ -45,8 +45,8 @@ async function api(path, options = {}) {
 }
 
 function authHeaders() {
-  const pin = localStorage.getItem("piConnectPin");
-  return pin ? { "X-Pi-Connect-Pin": pin } : {};
+  const pin = localStorage.getItem("spotpiPin");
+  return pin ? { "X-SpotPi-Pin": pin } : {};
 }
 
 function showNotice(message, isError = false) {
@@ -221,7 +221,7 @@ async function saveSettings({ restart = false } = {}) {
   });
   state.config = payload.config;
   if (state.config.web.auth_mode === "pin" && state.config.web.auth_pin) {
-    localStorage.setItem("piConnectPin", state.config.web.auth_pin);
+    localStorage.setItem("spotpiPin", state.config.web.auth_pin);
   }
   renderSettings();
   if (restart) {
@@ -568,7 +568,7 @@ function wizardStep0(el) {
     <p class="wizard-step-desc">What should your speaker be called in the Spotify app?</p>
     <div class="wizard-field">
       <label for="wiz-name">Speaker name</label>
-      <input id="wiz-name" type="text" value="${escapeHtml(wizard.data.deviceName)}" placeholder="PiConnect Speaker" autocomplete="off">
+      <input id="wiz-name" type="text" value="${escapeHtml(wizard.data.deviceName)}" placeholder="SpotPi" autocomplete="off">
     </div>
     <div class="wizard-tip">
       <strong>Tip:</strong> This is the name that appears in Spotify when choosing where to play.
@@ -686,7 +686,7 @@ function wizardStep3(el) {
     <div class="wizard-summary">
       <div class="wizard-summary-row">
         <span class="wizard-summary-label">Device Name</span>
-        <span class="wizard-summary-value">${escapeHtml(wizard.data.deviceName || "PiConnect Speaker")}</span>
+        <span class="wizard-summary-value">${escapeHtml(wizard.data.deviceName || "SpotPi")}</span>
       </div>
       <div class="wizard-summary-row">
         <span class="wizard-summary-label">Audio Output</span>
@@ -703,7 +703,7 @@ function wizardStep3(el) {
     </div>
     <div class="wizard-tip" style="margin-top:16px">
       <strong>After saving:</strong> Open Spotify, tap the speaker icon, and select
-      <strong>${escapeHtml(wizard.data.deviceName || "PiConnect Speaker")}</strong> to start playing.
+      <strong>${escapeHtml(wizard.data.deviceName || "SpotPi")}</strong> to start playing.
     </div>
   `;
 }

@@ -1,16 +1,16 @@
 [Unit]
-Description=Pi Connect Speaker Web UI
+Description=SpotPi Web UI
 Wants=network-online.target
 After=network-online.target
 
 [Service]
 Type=simple
-User=pi-connect-speaker
-Group=pi-connect-speaker
+User=spotpi
+Group=spotpi
 SupplementaryGroups=audio
-Environment=PCS_CONFIG=/etc/pi-connect-speaker/config.toml
+Environment=PCS_CONFIG=/etc/spotpi/config.toml
 Environment=PYTHONUNBUFFERED=1
-ExecStart=/opt/pi-connect-speaker/venv/bin/pi-connect-speaker
+ExecStart=/opt/spotpi/venv/bin/spotpi
 Restart=always
 RestartSec=5
 TimeoutStartSec=30
@@ -21,7 +21,7 @@ ProtectHome=true
 ProtectSystem=full
 LockPersonality=true
 RestrictRealtime=true
-ReadWritePaths=/etc/pi-connect-speaker /var/cache/pi-connect-speaker /var/lib/pi-connect-speaker
+ReadWritePaths=/etc/spotpi /var/cache/spotpi /var/lib/spotpi
 
 [Install]
 WantedBy=multi-user.target

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 DEFAULT_CONFIG = {
     "device": {
-        "name": "PiConnect Speaker",
+        "name": "SpotPi",
         "append_hostname": False,
         "type": "speaker",
         "timezone": "Etc/UTC",
@@ -42,8 +42,8 @@ DEFAULT_CONFIG = {
     "quality": {
         "bitrate_kbps": 320,
         "cache_enabled": True,
-        "cache_path": "/var/cache/pi-connect-speaker/audio",
-        "system_cache_path": "/var/cache/pi-connect-speaker/system",
+        "cache_path": "/var/cache/spotpi/audio",
+        "system_cache_path": "/var/cache/spotpi/system",
         "cache_size_limit": "512M",
         "gapless_enabled": True,
         "autoplay_enabled": True,
@@ -64,8 +64,8 @@ DEFAULT_CONFIG = {
     },
     "service": {
         "librespot_path": "librespot",
-        "spotify_service_name": "pi-connect-speaker-librespot.service",
-        "web_service_name": "pi-connect-speaker.service",
+        "spotify_service_name": "spotpi-librespot.service",
+        "web_service_name": "spotpi.service",
         "autostart": True,
         "log_level": "info",
         "zeroconf_backend": "auto",
@@ -82,11 +82,11 @@ DEFAULT_CONFIG = {
     },
     "backup": {
         "enabled": True,
-        "directory": "/etc/pi-connect-speaker/backups",
+        "directory": "/etc/spotpi/backups",
         "keep_last": 20,
     },
     "profiles": {
-        "directory": "/etc/pi-connect-speaker/profiles",
+        "directory": "/etc/spotpi/profiles",
     },
     "librespot": {
         "enable_oauth": False,
