@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import unittest
 
-from pi_connect_speaker.config import deep_copy_defaults
-from pi_connect_speaker.librespot import build_librespot_args, redacted_args, resolved_device_name
+from spotpi.config import deep_copy_defaults
+from spotpi.librespot import build_librespot_args, redacted_args, resolved_device_name
 
 
 class LibrespotTests(unittest.TestCase):
@@ -11,7 +11,7 @@ class LibrespotTests(unittest.TestCase):
         config = deep_copy_defaults()
         args = build_librespot_args(config)
         self.assertIn("--name", args)
-        self.assertIn("PiConnect Speaker", args)
+        self.assertIn("SpotPi", args)
         self.assertIn("--backend", args)
         self.assertIn("alsa", args)
         self.assertIn("--bitrate", args)
@@ -35,9 +35,9 @@ class LibrespotTests(unittest.TestCase):
 
     def test_hostname_suffix_is_optional(self) -> None:
         config = deep_copy_defaults()
-        self.assertEqual(resolved_device_name(config), "PiConnect Speaker")
+        self.assertEqual(resolved_device_name(config), "SpotPi")
         config["device"]["append_hostname"] = True
-        self.assertTrue(resolved_device_name(config).startswith("PiConnect Speaker ("))
+        self.assertTrue(resolved_device_name(config).startswith("SpotPi ("))
 
 
 if __name__ == "__main__":

@@ -1,23 +1,23 @@
 # Architecture
 
-Pi Connect Speaker is intentionally small.
+SpotPi is intentionally small.
 
 ## Components
 
-- `pi_connect_speaker.http_server`: local web UI and JSON API.
-- `pi_connect_speaker.config`: TOML load, validation, merge, and atomic save.
-- `pi_connect_speaker.librespot`: converts settings into a `librespot` command.
-- `pi_connect_speaker.system`: systemd, journal, ALSA, and test-sound wrappers.
-- `pi_connect_speaker.profiles`: save, load, list, and delete profile TOML files.
-- `pi_connect_speaker.diagnostics`: doctor checks and system summary.
-- `pi_connect_speaker.cli`: support commands for doctor, preview, and config bootstrap.
-- `src/pi_connect_speaker/static`: HTML, CSS, and JavaScript UI.
+- `spotpi.http_server`: local web UI and JSON API.
+- `spotpi.config`: TOML load, validation, merge, and atomic save.
+- `spotpi.librespot`: converts settings into a `librespot` command.
+- `spotpi.system`: systemd, journal, ALSA, and test-sound wrappers.
+- `spotpi.profiles`: save, load, list, and delete profile TOML files.
+- `spotpi.diagnostics`: doctor checks and system summary.
+- `spotpi.cli`: support commands for doctor, preview, and config bootstrap.
+- `src/spotpi/static`: HTML, CSS, and JavaScript UI.
 
 ## Runtime
 
-`pi-connect-speaker.service` runs the web UI.
+`spotpi.service` runs the web UI.
 
-`pi-connect-speaker-librespot.service` runs a Python wrapper that reads the same config and executes `librespot` with explicit arguments. Restarting this service is enough to apply playback-related settings.
+`spotpi-librespot.service` runs a Python wrapper that reads the same config and executes `librespot` with explicit arguments. Restarting this service is enough to apply playback-related settings.
 
 ## Stability Choices
 
@@ -42,7 +42,7 @@ python -m compileall src
 Run locally with a temporary config:
 
 ```bash
-PCS_CONFIG=/tmp/pi-connect-speaker.toml python -m pi_connect_speaker
+PCS_CONFIG=/tmp/spotpi.toml python -m spotpi
 ```
 
 Do not run `scripts/install.sh` on your development machine unless it is the target Raspberry Pi.

@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-APP_NAME="pi-connect-speaker"
-APP_USER="pi-connect-speaker"
+APP_NAME="spotpi"
+APP_USER="spotpi"
 INSTALL_DIR="/opt/${APP_NAME}"
 CONFIG_DIR="/etc/${APP_NAME}"
 CACHE_DIR="/var/cache/${APP_NAME}"
@@ -102,7 +102,7 @@ cat <<EOF
 Installed ${APP_NAME}.
 
 Check the installation:
-  sudo -u ${APP_USER} ${INSTALL_DIR}/venv/bin/pi-connect-speaker-doctor
+  sudo -u ${APP_USER} ${INSTALL_DIR}/venv/bin/spotpi-doctor
 
 Open:
   http://<raspberry-pi-ip>:8080

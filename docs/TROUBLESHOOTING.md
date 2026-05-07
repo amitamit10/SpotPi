@@ -5,14 +5,14 @@
 Run the built-in checks first:
 
 ```bash
-sudo -u pi-connect-speaker /opt/pi-connect-speaker/venv/bin/pi-connect-speaker-doctor
+sudo -u spotpi /opt/spotpi/venv/bin/spotpi-doctor
 ```
 
 Check services:
 
 ```bash
-systemctl status pi-connect-speaker.service
-systemctl status pi-connect-speaker-librespot.service
+systemctl status spotpi.service
+systemctl status spotpi-librespot.service
 ```
 
 Check discovery/network basics:
@@ -36,7 +36,7 @@ Pick the USB DAC in the web UI under `Audio Devices`, then save and restart.
 Check logs:
 
 ```bash
-journalctl -u pi-connect-speaker-librespot.service -n 200 --no-pager
+journalctl -u spotpi-librespot.service -n 200 --no-pager
 ```
 
 ## Crackling or Dropouts
@@ -63,13 +63,13 @@ Use a stable power supply and avoid overloaded USB hubs.
 Check the web service:
 
 ```bash
-systemctl status pi-connect-speaker.service
+systemctl status spotpi.service
 ```
 
 Check the configured port:
 
 ```bash
-grep -n "port" /etc/pi-connect-speaker/config.toml
+grep -n "port" /etc/spotpi/config.toml
 ```
 
 Default URL:

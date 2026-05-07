@@ -3,7 +3,7 @@
 Active config:
 
 ```text
-/etc/pi-connect-speaker/config.toml
+/etc/spotpi/config.toml
 ```
 
 Default template:
@@ -58,7 +58,7 @@ Controls command timeout, health interval, watchdog preference, and whether an a
 
 Controls service names, `librespot` path, autostart preference, log level, and zeroconf settings.
 
-The default install grants the web UI limited sudo access for `pi-connect-speaker-librespot.service`. If you change `spotify_service_name`, update `/etc/sudoers.d/pi-connect-speaker` to match.
+The default install grants the web UI limited sudo access for `spotpi-librespot.service`. If you change `spotify_service_name`, update `/etc/sudoers.d/spotpi` to match.
 
 `diagnostics`
 
@@ -80,10 +80,10 @@ Controls OAuth mode, cached username, access token, and extra arguments.
 
 | Path | Purpose |
 | --- | --- |
-| `/etc/pi-connect-speaker/config.toml` | Active configuration |
-| `/etc/pi-connect-speaker/profiles` | Saved profiles |
-| `/etc/pi-connect-speaker/backups` | Automatic config backups |
-| `/var/cache/pi-connect-speaker` | Librespot audio/system cache |
+| `/etc/spotpi/config.toml` | Active configuration |
+| `/etc/spotpi/profiles` | Saved profiles |
+| `/etc/spotpi/backups` | Automatic config backups |
+| `/var/cache/spotpi` | Librespot audio/system cache |
 
 ## Security
 
@@ -91,10 +91,10 @@ The web UI defaults to `auth_mode = "none"` for trusted home networks. Do not ex
 
 ## Applying Changes
 
-Settings are saved immediately to TOML. Audio and Spotify Connect settings take effect after restarting `pi-connect-speaker-librespot.service`.
+Settings are saved immediately to TOML. Audio and Spotify Connect settings take effect after restarting `spotpi-librespot.service`.
 
 Use the UI `Save & Restart` button or:
 
 ```bash
-sudo systemctl restart pi-connect-speaker-librespot.service
+sudo systemctl restart spotpi-librespot.service
 ```

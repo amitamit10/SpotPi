@@ -4,14 +4,14 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from pi_connect_speaker.config import ConfigError, deep_copy_defaults, list_backups, load_config, restore_backup, save_config, update_config
+from spotpi.config import ConfigError, deep_copy_defaults, list_backups, load_config, restore_backup, save_config, update_config
 
 
 class ConfigTests(unittest.TestCase):
     def test_missing_config_uses_defaults(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             config = load_config(Path(tmp) / "missing.toml")
-        self.assertEqual(config["device"]["name"], "PiConnect Speaker")
+        self.assertEqual(config["device"]["name"], "SpotPi")
         self.assertEqual(config["web"]["auth_mode"], "none")
 
     def test_save_and_load_round_trip(self) -> None:

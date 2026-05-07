@@ -1,4 +1,4 @@
-# Pi Connect Speaker
+# SpotPi
 
 <p align="center">
   <img alt="Python" src="https://img.shields.io/badge/Python-3.11+-3776AB?logo=python&logoColor=white">
@@ -23,14 +23,14 @@ sudo apt-get update && sudo apt-get install -y git && git clone https://github.c
 
 Then open **http://\<pi-ip\>:8080** in your browser.
 
-The device will appear in Spotify as **PiConnect Speaker**.
+The device will appear in Spotify as **SpotPi**.
 
 > For custom install modes (existing binary, apt, Cargo) see [Install Options](docs/OPERATIONS.md#install-options).
 
 ## Verify
 
 ```bash
-sudo -u pi-connect-speaker /opt/pi-connect-speaker/venv/bin/pi-connect-speaker-doctor
+sudo -u spotpi /opt/spotpi/venv/bin/spotpi-doctor
 ```
 
 ## Uninstall

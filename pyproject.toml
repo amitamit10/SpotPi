@@ -3,13 +3,13 @@ requires = ["setuptools>=68"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "pi-connect-speaker"
+name = "spotpi"
 version = "0.1.0"
 description = "A stable Raspberry Pi Spotify Connect speaker with a local settings UI."
 readme = "README.md"
 requires-python = ">=3.11"
 license = { text = "MIT" }
-authors = [{ name = "Pi Connect Speaker contributors" }]
+authors = [{ name = "SpotPi contributors" }]
 keywords = ["raspberry-pi", "spotify-connect", "librespot", "alsa", "audio"]
 classifiers = [
   "Development Status :: 3 - Alpha",
@@ -23,12 +23,12 @@ classifiers = [
 dependencies = []
 
 [project.scripts]
-pi-connect-speaker = "pi_connect_speaker.http_server:main"
-pi-connect-speaker-librespot = "pi_connect_speaker.librespot:main"
-pi-connect-speaker-librespot-preview = "pi_connect_speaker.librespot:preview"
-pi-connect-speaker-cli = "pi_connect_speaker.cli:main"
-pi-connect-speaker-doctor = "pi_connect_speaker.cli:doctor_main"
-pi-connect-speaker-init-config = "pi_connect_speaker.cli:init_config_main"
+spotpi = "spotpi.http_server:main"
+spotpi-librespot = "spotpi.librespot:main"
+spotpi-librespot-preview = "spotpi.librespot:preview"
+spotpi-cli = "spotpi.cli:main"
+spotpi-doctor = "spotpi.cli:doctor_main"
+spotpi-init-config = "spotpi.cli:init_config_main"
 
 [tool.setuptools]
 package-dir = { "" = "src" }
@@ -37,4 +37,4 @@ package-dir = { "" = "src" }
 where = ["src"]
 
 [tool.setuptools.package-data]
-pi_connect_speaker = ["static/*.html", "static/assets/*.css", "static/assets/*.js"]
+spotpi = ["static/*.html", "static/assets/*.css", "static/assets/*.js"]

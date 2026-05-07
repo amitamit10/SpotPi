@@ -13,27 +13,27 @@ sudo LIBRESPOT_INSTALL_MODE=auto    scripts/install.sh
 ## Services
 
 ```bash
-sudo systemctl status pi-connect-speaker.service
-sudo systemctl status pi-connect-speaker-librespot.service
+sudo systemctl status spotpi.service
+sudo systemctl status spotpi-librespot.service
 ```
 
 Start:
 
 ```bash
-sudo systemctl start pi-connect-speaker.service
-sudo systemctl start pi-connect-speaker-librespot.service
+sudo systemctl start spotpi.service
+sudo systemctl start spotpi-librespot.service
 ```
 
 Restart Spotify Connect only:
 
 ```bash
-sudo systemctl restart pi-connect-speaker-librespot.service
+sudo systemctl restart spotpi-librespot.service
 ```
 
 ## Doctor
 
 ```bash
-sudo -u pi-connect-speaker /opt/pi-connect-speaker/venv/bin/pi-connect-speaker-doctor
+sudo -u spotpi /opt/spotpi/venv/bin/spotpi-doctor
 ```
 
 Or from a source checkout:
@@ -45,8 +45,8 @@ scripts/doctor.sh
 ## Logs
 
 ```bash
-journalctl -u pi-connect-speaker.service -n 200 --no-pager
-journalctl -u pi-connect-speaker-librespot.service -n 200 --no-pager
+journalctl -u spotpi.service -n 200 --no-pager
+journalctl -u spotpi-librespot.service -n 200 --no-pager
 ```
 
 ## Config Backups
@@ -54,13 +54,13 @@ journalctl -u pi-connect-speaker-librespot.service -n 200 --no-pager
 Backups live in:
 
 ```text
-/etc/pi-connect-speaker/backups
+/etc/spotpi/backups
 ```
 
 Restore from the UI or copy a backup over:
 
 ```bash
-sudo cp /etc/pi-connect-speaker/backups/<backup>.toml /etc/pi-connect-speaker/config.toml
-sudo chown pi-connect-speaker:pi-connect-speaker /etc/pi-connect-speaker/config.toml
-sudo systemctl restart pi-connect-speaker-librespot.service
+sudo cp /etc/spotpi/backups/<backup>.toml /etc/spotpi/config.toml
+sudo chown spotpi:spotpi /etc/spotpi/config.toml
+sudo systemctl restart spotpi-librespot.service
 ```

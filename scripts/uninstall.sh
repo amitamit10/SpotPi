@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-APP_NAME="pi-connect-speaker"
-APP_USER="pi-connect-speaker"
+APP_NAME="spotpi"
+APP_USER="spotpi"
 PURGE="${1:-}"
 
 if [[ "${EUID}" -ne 0 ]]; then

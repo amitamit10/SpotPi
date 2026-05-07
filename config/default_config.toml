@@ -1,8 +1,8 @@
-# Pi Connect Speaker configuration
+# SpotPi configuration
 # Managed by the web UI. Edit carefully if changing by hand.
 
 [device]
-name = "PiConnect Speaker"
+name = "SpotPi"
 append_hostname = false
 type = "speaker"
 timezone = "Etc/UTC"
@@ -40,8 +40,8 @@ normalisation_threshold_dbfs = -2.0
 [quality]
 bitrate_kbps = 320
 cache_enabled = true
-cache_path = "/var/cache/pi-connect-speaker/audio"
-system_cache_path = "/var/cache/pi-connect-speaker/system"
+cache_path = "/var/cache/spotpi/audio"
+system_cache_path = "/var/cache/spotpi/system"
 cache_size_limit = "512M"
 gapless_enabled = true
 autoplay_enabled = true
@@ -62,8 +62,8 @@ require_audio_device_before_start = false
 
 [service]
 librespot_path = "librespot"
-spotify_service_name = "pi-connect-speaker-librespot.service"
-web_service_name = "pi-connect-speaker.service"
+spotify_service_name = "spotpi-librespot.service"
+web_service_name = "spotpi.service"
 autostart = true
 log_level = "info"
 zeroconf_backend = "auto"
@@ -80,11 +80,11 @@ show_command_preview = true
 
 [backup]
 enabled = true
-directory = "/etc/pi-connect-speaker/backups"
+directory = "/etc/spotpi/backups"
 keep_last = 20
 
 [profiles]
-directory = "/etc/pi-connect-speaker/profiles"
+directory = "/etc/spotpi/profiles"
 
 [librespot]
 enable_oauth = false

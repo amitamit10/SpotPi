@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import unittest
 
-from pi_connect_speaker.system import parse_amixer_controls, parse_amixer_volume, parse_aplay_hardware
+from spotpi.system import parse_amixer_controls, parse_amixer_volume, parse_aplay_hardware
 
 
 class SystemParsingTests(unittest.TestCase):
