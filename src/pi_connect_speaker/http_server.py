@@ -143,6 +143,14 @@ class RequestHandler(BaseHTTPRequestHandler):
         if method == "DELETE" and path.startswith("/api/profiles/"):
             name = path.rsplit("/", 1)[-1]
             return delete_profile(config, name)
+        if method == "GET" and path == "/api/nowplaying":
+            nowplaying = Path("/tmp/spotpi-nowplaying.json")
+            if nowplaying.exists():
+                try:
+                    return json.loads(nowplaying.read_text())
+                except Exception:
+                    pass
+            return {"event": "unknown"}
         raise ApiError(HTTPStatus.NOT_FOUND, "Not found")
 
     def read_json(self) -> dict[str, Any]:

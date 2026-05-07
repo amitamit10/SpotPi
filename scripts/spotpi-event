@@ -1,0 +1,39 @@
+#!/usr/bin/env python3
+"""librespot --onevent handler. Writes current track info to /tmp/spotpi-nowplaying.json."""
+import json
+import os
+from datetime import datetime
+from pathlib import Path
+
+NOWPLAYING = Path("/tmp/spotpi-nowplaying.json")
+event = os.environ.get("PLAYER_EVENT", "")
+
+
+def now():
+    return datetime.now().isoformat()
+
+
+if event in ("changed", "started", "playing"):
+    covers = os.environ.get("COVERS", "")
+    cover_url = covers.split()[0] if covers.strip() else ""
+    NOWPLAYING.write_text(json.dumps({
+        "event": event,
+        "name": os.environ.get("NAME", ""),
+        "artists": os.environ.get("ARTISTS", ""),
+        "album": os.environ.get("ALBUM", ""),
+        "track_id": os.environ.get("TRACK_ID", ""),
+        "duration_ms": int(os.environ.get("DURATION_MS", "0") or "0"),
+        "position_ms": int(os.environ.get("POSITION_MS", "0") or "0"),
+        "cover_url": cover_url,
+        "ts": now(),
+    }))
+elif event == "paused":
+    if NOWPLAYING.exists():
+        try:
+            data = json.loads(NOWPLAYING.read_text())
+            data["event"] = "paused"
+            NOWPLAYING.write_text(json.dumps(data))
+        except Exception:
+            pass
+elif event in ("stopped", "session_disconnected"):
+    NOWPLAYING.write_text(json.dumps({"event": event, "ts": now()}))

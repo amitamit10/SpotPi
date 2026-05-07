@@ -79,6 +79,7 @@ async function init() {
     refreshDoctor(),
     refreshAudio(),
     refreshMixer(),
+    refreshNowPlaying(),
     refreshLogs(),
     refreshProfiles(),
     refreshBackups(),
@@ -347,11 +348,66 @@ function deviceRow(id, title, meta) {
   return row;
 }
 
+async function refreshNowPlaying() {
+  const data = await api("/api/nowplaying");
+  renderNowPlaying(data);
+}
+
+function renderNowPlaying(data) {
+  const card = document.querySelector("#nowplaying-card");
+  const art = document.querySelector("#nowplaying-art");
+  const title = document.querySelector("#nowplaying-title");
+  const artist = document.querySelector("#nowplaying-artist");
+  const album = document.querySelector("#nowplaying-album");
+  const labelText = document.querySelector("#nowplaying-label-text");
+
+  const event = data.event || "unknown";
+  card.dataset.state = event;
+
+  if (event === "playing" || event === "changed" || event === "started") {
+    title.textContent = data.name || "Unknown track";
+    artist.textContent = data.artists || "";
+    album.textContent = data.album || "";
+    labelText.textContent = "Now Playing";
+    if (data.cover_url) {
+      art.style.backgroundImage = `url(${JSON.stringify(data.cover_url)})`;
+      art.textContent = "";
+    } else {
+      art.style.backgroundImage = "";
+      art.textContent = "♫";
+    }
+  } else if (event === "paused") {
+    labelText.textContent = "Paused";
+    title.textContent = data.name || "Unknown track";
+    artist.textContent = data.artists || "";
+    album.textContent = data.album || "";
+    if (data.cover_url) {
+      art.style.backgroundImage = `url(${JSON.stringify(data.cover_url)})`;
+      art.textContent = "";
+    } else {
+      art.style.backgroundImage = "";
+      art.textContent = "♫";
+    }
+  } else {
+    title.textContent = "Nothing playing";
+    artist.textContent = "";
+    album.textContent = "";
+    art.style.backgroundImage = "";
+    art.textContent = "♫";
+    labelText.textContent = "Now Playing";
+  }
+}
+
 async function refreshMixer() {
   const payload = await api("/api/audio/mixer");
   const volume = payload.volume_percent;
-  els.mixerVolume.value = volume === null ? state.config.volume.startup_volume_percent : volume;
+  const resolved = volume === null ? state.config.volume.startup_volume_percent : volume;
+  els.mixerVolume.value = resolved;
   els.mixerState.textContent = `${payload.device} / ${payload.control} / ${volume === null ? "unknown" : `${volume}%`}`;
+  const dashVol = document.querySelector("#dash-volume");
+  const dashLabel = document.querySelector("#dash-volume-label");
+  if (dashVol) dashVol.value = resolved;
+  if (dashLabel) dashLabel.textContent = volume === null ? "—" : `${volume}%`;
 }
 
 async function setMixerVolume() {
@@ -471,7 +527,7 @@ function startAutoRefresh() {
   const seconds = Number(state.config.diagnostics.auto_refresh_seconds || 0);
   if (seconds <= 0) return;
   setInterval(() => {
-    Promise.allSettled([refreshStatus(), refreshMixer()]);
+    Promise.allSettled([refreshStatus(), refreshMixer(), refreshNowPlaying()]);
   }, seconds * 1000);
 }
 
@@ -516,6 +572,26 @@ document.querySelector("#save-profile").addEventListener("click", () => saveProf
 document.querySelector("#refresh-backups").addEventListener("click", () => refreshBackups().catch((error) => showNotice(error.message, true)));
 document.querySelector("#test-sound").addEventListener("click", () => testSound().catch((error) => showNotice(error.message, true)));
 document.querySelector("#set-volume").addEventListener("click", () => setMixerVolume().catch((error) => showNotice(error.message, true)));
+
+const dashVolume = document.querySelector("#dash-volume");
+const dashVolumeLabel = document.querySelector("#dash-volume-label");
+dashVolume.addEventListener("input", () => {
+  dashVolumeLabel.textContent = `${dashVolume.value}%`;
+});
+document.querySelector("#dash-set-volume").addEventListener("click", async () => {
+  const percent = Number.parseInt(dashVolume.value || "0", 10);
+  try {
+    const payload = await api("/api/audio/volume", {
+      method: "POST",
+      body: JSON.stringify({ percent }),
+    });
+    await refreshMixer();
+    dashVolumeLabel.textContent = `${percent}%`;
+    showNotice(payload.ok ? `Volume set to ${percent}%` : payload.stderr || "Volume change failed", !payload.ok);
+  } catch (error) {
+    showNotice(error.message, true);
+  }
+});
 
 for (const button of document.querySelectorAll("[data-service-action]")) {
   button.addEventListener("click", () => serviceAction(button.dataset.serviceTarget, button.dataset.serviceAction).catch((error) => showNotice(error.message, true)));

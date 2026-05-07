@@ -39,8 +39,30 @@
               <button data-service-target="spotify" data-service-action="disable-now" type="button">Disable</button>
             </div>
           </div>
-          <div id="status-grid" class="status-grid"></div>
-          <div id="system-grid" class="status-grid compact"></div>
+          <div class="dashboard-stats">
+            <div id="nowplaying-card" class="nowplaying-card" data-state="unknown">
+              <div class="nowplaying-art" id="nowplaying-art">&#9835;</div>
+              <div class="nowplaying-info">
+                <div class="nowplaying-label">
+                  <div class="nowplaying-bars" id="nowplaying-bars">
+                    <span></span><span></span><span></span>
+                  </div>
+                  <span id="nowplaying-label-text">Now Playing</span>
+                </div>
+                <div class="nowplaying-title" id="nowplaying-title">Nothing playing</div>
+                <div class="nowplaying-artist" id="nowplaying-artist"></div>
+                <div class="nowplaying-album" id="nowplaying-album"></div>
+              </div>
+            </div>
+            <div id="status-grid" class="status-grid"></div>
+            <div id="system-grid" class="status-grid compact"></div>
+            <div class="dashboard-volume">
+              <span class="dashboard-volume-icon">&#128266;</span>
+              <input id="dash-volume" type="range" min="0" max="100" value="50">
+              <span id="dash-volume-label">&#8212;</span>
+              <button id="dash-set-volume" type="button">Set</button>
+            </div>
+          </div>
         </section>
 
         <section id="doctor-panel" class="panel">

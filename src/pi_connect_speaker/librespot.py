@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import os
 import re
+from pathlib import Path
 import socket
 import subprocess
 import sys
@@ -89,6 +90,10 @@ def build_librespot_args(config: dict[str, Any], include_executable: bool = True
     if librespot["username"]:
         args.extend(["--username", librespot["username"]])
     args.extend(librespot["extra_args"])
+    for candidate in ("/usr/local/bin/spotpi-event", "/opt/spotpi/bin/spotpi-event"):
+        if Path(candidate).is_file():
+            args.extend(["--onevent", candidate])
+            break
     return args
 
 
