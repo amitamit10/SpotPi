@@ -105,7 +105,7 @@ button, input, select, textarea {
   font: inherit;
 }
 
-/* ── Buttons ───────────────────────────────────────────── */
+/* ── Buttons ──────────────────────────────────────────── */
 
 button {
   display: inline-flex;
@@ -148,7 +148,10 @@ button:disabled {
   box-shadow: none;
 }
 
-/* ── Topbar ────────────────────────────────────────────── */
+/* ── Global: hidden attribute always wins ─────────────────── */
+[hidden] { display: none !important; }
+
+/* ── Topbar ────────────────────────────────────────── */
 
 .topbar {
   position: sticky;
@@ -156,44 +159,90 @@ button:disabled {
   z-index: 10;
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  padding: 0 24px;
-  height: 60px;
+  gap: 12px;
+  padding: 0 20px;
+  height: 58px;
   background: var(--topbar);
   border-bottom: 1px solid var(--line);
   box-shadow: var(--shadow-sm);
 }
 
-.topbar h1 {
-  margin: 0;
-  font-size: 16px;
-  font-weight: 700;
-  letter-spacing: -0.3px;
+.topbar-brand {
   display: flex;
   align-items: center;
-  gap: 10px;
-}
-
-.topbar h1::before {
-  content: "";
-  display: block;
-  width: 28px;
-  height: 28px;
-  border-radius: 8px;
-  background: var(--accent);
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='12' r='10'/%3E%3Ccircle cx='12' cy='12' r='3'/%3E%3C/svg%3E");
-  background-repeat: no-repeat;
-  background-position: center;
-  background-size: 16px;
+  gap: 9px;
   flex-shrink: 0;
 }
 
-.topbar p {
-  margin: 0;
-  font-size: 12px;
+.brand-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--subtle);
+  transition: background 0.4s;
+  flex-shrink: 0;
+}
+
+.brand-dot.live {
+  background: var(--ok);
+  animation: pulse-dot 2s ease-in-out infinite;
+}
+
+.brand-name {
+  font-size: 17px;
+  font-weight: 800;
+  letter-spacing: -0.4px;
+  color: var(--text);
+}
+
+/* View toggle */
+.view-tabs {
+  display: flex;
+  gap: 2px;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 3px;
+  margin: 0 auto;
+}
+
+.view-tab {
+  border: none;
+  border-radius: 5px;
+  background: transparent;
   color: var(--muted);
-  font-weight: 400;
+  box-shadow: none;
+  font-size: 13px;
+  font-weight: 600;
+  padding: 0 16px;
+  min-height: 28px;
+  transition: background 0.12s, color 0.12s;
+}
+
+.view-tab:hover {
+  background: var(--panel);
+  color: var(--text);
+  border: none;
+  box-shadow: none;
+}
+
+.view-tab.active {
+  background: var(--panel);
+  color: var(--text);
+  box-shadow: var(--shadow-sm);
+}
+
+.setup-btn {
+  background: var(--accent) !important;
+  border-color: var(--accent) !important;
+  color: #fff !important;
+  font-weight: 600;
+}
+
+.setup-btn:hover {
+  background: var(--accent-strong) !important;
+  border-color: var(--accent-strong) !important;
+  box-shadow: 0 0 0 3px var(--accent-soft);
 }
 
 .actions, .button-row {
@@ -203,7 +252,115 @@ button:disabled {
   align-items: center;
 }
 
-/* ── Layout ────────────────────────────────────────────── */
+/* ── Dashboard / Advanced view modes ────────────────────── */
+
+/* In dashboard: hide sidebar, collapse layout, hide adv panels, hide save buttons */
+body[data-view="dashboard"] .sidebar               { display: none; }
+body[data-view="dashboard"] .layout                { grid-template-columns: 1fr; max-width: 860px; }
+body[data-view="dashboard"] .adv-panel             { display: none; }
+body[data-view="dashboard"] #save-settings         { display: none; }
+body[data-view="dashboard"] #save-restart          { display: none; }
+body[data-view="dashboard"] #run-doctor            { display: none; }
+
+/* In advanced: hide the big dashboard hero, show normal panel-head instead */
+body[data-view="advanced"] .status-hero            { display: none; }
+body[data-view="advanced"] .dashboard-stats        { margin-top: 0; }
+body[data-view="advanced"] .dashboard-panel        { padding-top: 16px; }
+
+/* Dashboard panel tweaks */
+.dashboard-panel {
+  padding: 0;
+  overflow: hidden;
+}
+
+.dashboard-stats {
+  padding: 16px 20px 20px;
+}
+
+/* ── Hero (dashboard) ───────────────────────────────────── */
+
+.status-hero {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 36px 32px 28px;
+  background: linear-gradient(135deg,
+    color-mix(in srgb, var(--accent) 14%, var(--panel)) 0%,
+    var(--panel) 60%);
+  border-bottom: 1px solid var(--line);
+  border-radius: var(--radius) var(--radius) 0 0;
+  position: relative;
+  overflow: hidden;
+}
+
+.status-hero::before {
+  content: "";
+  position: absolute;
+  right: -40px;
+  top: -40px;
+  width: 220px;
+  height: 220px;
+  border-radius: 50%;
+  background: radial-gradient(circle, var(--accent-soft) 0%, transparent 70%);
+  pointer-events: none;
+}
+
+.hero-state {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--muted);
+  margin-bottom: 10px;
+}
+
+.hero-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.hero-dot--on {
+  background: var(--ok);
+  animation: pulse-dot 2s ease-in-out infinite;
+}
+
+.hero-dot--off { background: var(--danger); }
+
+@keyframes pulse-dot {
+  0%   { box-shadow: 0 0 0 0 rgba(22, 163, 74, 0.5); }
+  70%  { box-shadow: 0 0 0 7px rgba(22, 163, 74, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(22, 163, 74, 0); }
+}
+
+.hero-name {
+  font-size: 38px;
+  font-weight: 900;
+  letter-spacing: -1px;
+  color: var(--text);
+  line-height: 1.1;
+  margin-bottom: 8px;
+}
+
+.hero-hint {
+  font-size: 14px;
+  color: var(--muted);
+  margin-bottom: 20px;
+  max-width: 480px;
+  line-height: 1.5;
+}
+
+.hero-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+/* ── Layout ────────────────────────────────────────── */
 
 .layout {
   display: grid;
@@ -220,7 +377,7 @@ button:disabled {
   top: 84px;
 }
 
-/* ── Sidebar nav ───────────────────────────────────────── */
+/* ── Sidebar nav ────────────────────────────────────── */
 
 .tabs {
   display: grid;
@@ -260,7 +417,7 @@ button:disabled {
   font-weight: 600;
 }
 
-/* ── Content ───────────────────────────────────────────── */
+/* ── Content ─────────────────────────────────────────── */
 
 .content {
   display: grid;
@@ -268,7 +425,7 @@ button:disabled {
   min-width: 0;
 }
 
-/* ── Panels ────────────────────────────────────────────── */
+/* ── Panels ──────────────────────────────────────────── */
 
 .panel {
   background: var(--panel);
@@ -295,7 +452,7 @@ button:disabled {
   letter-spacing: -0.2px;
 }
 
-/* ── Status grid ───────────────────────────────────────── */
+/* ── Status grid ─────────────────────────────────────── */
 
 .status-grid {
   display: grid;
@@ -336,7 +493,7 @@ button:disabled {
 .warn { color: var(--warn); }
 .danger { color: var(--danger); }
 
-/* ── Settings form ─────────────────────────────────────── */
+/* ── Settings form ────────────────────────────────────── */
 
 .settings-form {
   display: grid;
@@ -447,7 +604,7 @@ button:disabled {
 
 .muted { color: var(--muted); }
 
-/* ── Doctor ────────────────────────────────────────────── */
+/* ── Doctor ──────────────────────────────────────────── */
 
 .doctor-summary {
   display: flex;
@@ -489,7 +646,7 @@ button:disabled {
   background: var(--danger-soft);
 }
 
-/* ── Mixer ─────────────────────────────────────────────── */
+/* ── Mixer ───────────────────────────────────────────── */
 
 .mixer {
   display: grid;
@@ -530,7 +687,7 @@ button:disabled {
   margin-bottom: 14px;
 }
 
-/* ── Logs ──────────────────────────────────────────────── */
+/* ── Logs ────────────────────────────────────────────── */
 
 .logs {
   min-height: 140px;
@@ -549,7 +706,7 @@ button:disabled {
   font-family: "Menlo", "Monaco", "Consolas", "Liberation Mono", monospace;
 }
 
-/* ── Notice ────────────────────────────────────────────── */
+/* ── Notice ──────────────────────────────────────────── */
 
 .notice {
   border: 1px solid var(--line);
@@ -565,7 +722,7 @@ button:disabled {
   color: var(--danger);
 }
 
-/* ── Responsive ────────────────────────────────────────── */
+/* ── Responsive ───────────────────────────────────────── */
 
 @media (max-width: 860px) {
   .topbar {
@@ -612,68 +769,13 @@ button:disabled {
   }
 }
 
-/* ── Status Hero ────────────────────────────────────────── */
-
-.status-hero {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  padding: 20px;
-  margin: -20px -20px 20px;
-  border-radius: var(--radius) var(--radius) 0 0;
-  background: linear-gradient(135deg, var(--accent-soft) 0%, transparent 80%);
-  border-bottom: 1px solid var(--line);
-}
-
-.hero-state {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 11px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.8px;
-  color: var(--muted);
-}
-
-.hero-dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  flex-shrink: 0;
-}
-
-.hero-dot--on {
-  background: var(--ok);
-  animation: pulse-dot 2s ease-in-out infinite;
-}
-
-.hero-dot--off {
-  background: var(--danger);
-}
-
-@keyframes pulse-dot {
-  0%   { box-shadow: 0 0 0 0 rgba(22, 163, 74, 0.5); }
-  70%  { box-shadow: 0 0 0 7px rgba(22, 163, 74, 0); }
-  100% { box-shadow: 0 0 0 0 rgba(22, 163, 74, 0); }
-}
-
-.hero-name {
-  font-size: 24px;
-  font-weight: 800;
-  letter-spacing: -0.5px;
-  color: var(--text);
-  line-height: 1.2;
-}
-
-.hero-hint {
-  font-size: 13px;
-  color: var(--muted);
-}
-
 /* ── Wizard ─────────────────────────────────────────────── */
 
 .wizard-overlay {
+  display: none; /* hidden by default — JS adds .is-open */
+}
+
+.wizard-overlay.is-open {
   position: fixed;
   inset: 0;
   z-index: 100;
@@ -685,6 +787,9 @@ button:disabled {
   -webkit-backdrop-filter: blur(4px);
   backdrop-filter: blur(4px);
 }
+
+.wizard-prev-btn { visibility: hidden; }
+.wizard-prev-btn.visible { visibility: visible; }
 
 .wizard-card {
   background: var(--panel);
