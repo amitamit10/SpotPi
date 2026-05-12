@@ -7,7 +7,11 @@ import os
 import re
 import shutil
 import tempfile
-import tomllib
+try:
+    import tomllib
+except ImportError:
+    import tomli as tomllib
+
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any

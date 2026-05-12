@@ -240,6 +240,10 @@ function applyTheme() {
   } else {
     document.documentElement.dataset.theme = theme;
   }
+  const accent = state.config.web.accent_color;
+  if (accent) {
+    document.documentElement.style.setProperty("--accent", accent);
+  }
 }
 
 function applyVisibility() {

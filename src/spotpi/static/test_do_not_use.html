@@ -1,0 +1,154 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>SpotPi Kiosk Mode</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/assets/test.css">
+</head>
+<body data-view="dashboard">
+  <div id="bg-blur" class="bg-blur"></div>
+  
+  <div class="kiosk-container">
+    <header class="kiosk-header">
+      <div class="kiosk-brand">
+        <div class="kiosk-logo">
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10 10-4.5 10-10S17.5 2 12 2zm4.6 14.4c-.2.3-.6.4-.9.2-2.5-1.5-5.6-1.8-9.3-1-.4.1-.7-.2-.8-.5-.1-.4.2-.7.5-.8 4-.9 7.5-.5 10.3 1.2.3.1.4.5.2.9zm1.2-2.8c-.3.4-.7.5-1.1.3-2.8-1.7-7.1-2.2-10.4-1.2-.4.1-.9-.1-1-.6-.1-.4.1-.9.6-1 3.8-1.2 8.5-.6 11.7 1.4.4.2.5.7.2 1.1zm.1-2.9C14.5 8.7 8.7 8.5 5.5 9.5c-.5.2-1.1-.1-1.3-.7-.2-.5.1-1.1.7-1.3 3.7-1.1 10.1-.9 14 1.4.5.3.7 1 .4 1.5-.3.5-1 .7-1.5.4z"/></svg>
+        </div>
+        <span id="hero-name">SpotPi</span>
+      </div>
+      <div class="kiosk-status">
+        <div class="status-pill" id="hero-pill" data-state="off">
+          <span class="hero-dot hero-dot--off" id="hero-dot"></span>
+          <span id="hero-label">Loading…</span>
+        </div>
+      </div>
+    </header>
+
+    <main class="kiosk-main">
+      <div id="nowplaying-card" class="kiosk-card" data-state="unknown">
+        <div class="kiosk-art-wrap">
+          <div class="kiosk-art" id="nowplaying-art"></div>
+        </div>
+        
+        <div class="kiosk-meta">
+          <div class="kiosk-eyebrow">
+            <div class="nowplaying-bars" id="nowplaying-bars">
+              <span></span><span></span><span></span><span></span>
+            </div>
+            <span id="nowplaying-label-text">NOW PLAYING</span>
+          </div>
+          <h1 class="kiosk-title" id="nowplaying-title">Ready to play</h1>
+          <h2 class="kiosk-artist" id="nowplaying-artist">Select a device in Spotify</h2>
+          <div class="kiosk-album" id="nowplaying-album"></div>
+        </div>
+      </div>
+    </main>
+
+    <footer class="kiosk-footer">
+      <div class="kiosk-controls">
+        <div class="vol-control">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 5L6 9H2v6h4l5 4V5z"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/><path d="M18.5 5.5a9 9 0 0 1 0 13"/></svg>
+          <input id="dash-volume" class="kiosk-slider" type="range" min="0" max="100" value="50">
+          <span id="dash-volume-label" class="vol-val">50%</span>
+          <button id="dash-set-volume" hidden></button>
+        </div>
+        
+        <div class="kiosk-actions">
+           <button id="theme-toggle" class="kiosk-btn" title="Toggle Theme">🌙</button>
+           <button id="enter-setup" class="kiosk-btn" title="Settings">⚙️</button>
+        </div>
+      </div>
+      
+      <div class="kiosk-stats">
+        <div class="kiosk-stat">
+          <span class="label">IP Address</span>
+          <span id="stat-ip" class="mono">—</span>
+        </div>
+        <div class="kiosk-stat">
+          <span class="label">System Temp</span>
+          <span id="stat-temp" class="mono">—</span>
+        </div>
+        <div class="kiosk-stat">
+          <span class="label">Uptime</span>
+          <span id="stat-uptime" class="mono">—</span>
+        </div>
+      </div>
+    </footer>
+  </div>
+
+  <!-- Hidden elements needed by app.js and chrome.js -->
+  <div hidden aria-hidden="true">
+    <button id="btn-dashboard"></button>
+    <button id="btn-advanced"></button>
+    <button id="refresh-status"></button>
+    <button id="power-toggle" data-on="false"></button>
+    <div id="dashboard-view"></div>
+    <div id="advanced-view"></div>
+    <div id="notice"></div>
+    <div id="status-grid"></div>
+    <div id="system-grid"></div>
+    <div id="tabs"></div>
+    <div id="settings-form"></div>
+    <div id="section-title"></div>
+    <div id="doctor-summary"></div>
+    <div id="doctor-list"></div>
+    <div id="audio-devices"></div>
+    <div id="mixer-state"></div>
+    <input id="mixer-volume">
+    <div id="logs"></div>
+    <select id="log-target"></select>
+    <div id="command-preview"></div>
+    <div id="profile-list"></div>
+    <input id="profile-name">
+    <div id="backup-list"></div>
+    <div id="device-subtitle"></div>
+    <div id="output-picker"></div>
+    <div id="output-sheet"></div>
+    <div id="output-sheet-close"></div>
+    <div id="output-sheet-list"></div>
+    <div id="output-name"></div>
+    <div id="setup-wizard">
+        <div id="wizard-progress"></div>
+        <div id="wizard-close"></div>
+        <div id="wizard-content"></div>
+        <button id="wizard-prev"></button>
+        <button id="wizard-next"></button>
+    </div>
+    <div id="idle-help"><span id="idle-help-name"></span></div>
+    <button id="dash-run-doctor"></button>
+    <button id="dash-view-logs"></button>
+    <button id="enter-setup-dash"></button>
+    <button id="goto-advanced"></button>
+  </div>
+
+  <script src="/assets/app.js"></script>
+  <script src="/assets/chrome.js"></script>
+  
+  <script>
+    // Custom sync for background blur and UI polishing
+    (function() {
+      const art = document.querySelector("#nowplaying-art");
+      const blur = document.querySelector("#bg-blur");
+      
+      const updateBackground = () => {
+        if (art.style.backgroundImage) {
+          blur.style.backgroundImage = art.style.backgroundImage;
+        } else {
+          blur.style.backgroundImage = "linear-gradient(135deg, #121212 0%, #000 100%)";
+        }
+      };
+
+      // Watch for changes to the art background
+      const observer = new MutationObserver(updateBackground);
+      observer.observe(art, { attributes: true, attributeFilter: ["style"] });
+      
+      // Initial call
+      updateBackground();
+    })();
+  </script>
+</body>
+</html>

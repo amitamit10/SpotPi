@@ -13,6 +13,7 @@ from typing import Any
 
 from .librespot import build_librespot_args, redacted_args
 
+DOCKER_MODE = os.environ.get("SPOTPI_DOCKER") == "1"
 SERVICE_RE = re.compile(r"^[A-Za-z0-9_.@-]+\.service$")
 ALLOWED_ACTIONS = {"start", "stop", "restart", "enable", "disable", "enable-now", "disable-now"}
 
@@ -85,6 +86,8 @@ def validate_service_name(name: str) -> str:
 def systemctl(config: dict[str, Any], action: str, service_name: str) -> CommandResult:
     if action not in ALLOWED_ACTIONS:
         raise ValueError(f"Unsupported service action: {action}")
+    if DOCKER_MODE:
+        return CommandResult(True, 0, f"Docker: {action} {service_name}", "", ["docker", action, service_name])
     service = validate_service_name(service_name)
     systemd_action = action.replace("-now", "")
     args = [*system_prefix(), "systemctl", systemd_action]
@@ -107,6 +110,15 @@ def systemctl_target(config: dict[str, Any], action: str, target: str) -> Comman
 
 
 def service_status(config: dict[str, Any], service_name: str) -> dict[str, Any]:
+    if DOCKER_MODE:
+        return {
+            "service": service_name,
+            "active": "active",
+            "enabled": "enabled",
+            "active_ok": True,
+            "enabled_ok": True,
+            "errors": ["Managed by Docker"],
+        }
     service = validate_service_name(service_name)
     timeout = command_timeout(config)
     active = run_command(["systemctl", "is-active", service], timeout=timeout)
