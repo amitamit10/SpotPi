@@ -36,30 +36,29 @@ if event in ("changed", "started"):
         "ts": now(),
     }))
 elif event == "playing":
-    # librespot 0.8+ fires "playing" without track metadata — only update
-    # the event field so the UI knows playback resumed, keep the track info.
+    # librespot 0.8+ fires "playing" without track metadata.
+    # Keep existing metadata only when the track_id hasn't changed.
+    # If the track changed, write empty metadata so the web server's
+    # journal fallback can fill in the correct name.
+    new_id = os.environ.get("TRACK_ID", "")
+    existing: dict = {}
     if NOWPLAYING.exists():
         try:
-            data = json.loads(NOWPLAYING.read_text())
-            data["event"] = "playing"
-            NOWPLAYING.write_text(json.dumps(data))
+            existing = json.loads(NOWPLAYING.read_text())
         except Exception:
             pass
-    else:
-        # No prior state — write what we have (name/artists may be empty).
-        covers = os.environ.get("COVERS", "")
-        cover_url = covers.split()[0] if covers.strip() else ""
-        NOWPLAYING.write_text(json.dumps({
-            "event": event,
-            "name": os.environ.get("NAME", ""),
-            "artists": os.environ.get("ARTISTS", ""),
-            "album": os.environ.get("ALBUM", ""),
-            "track_id": os.environ.get("TRACK_ID", ""),
-            "duration_ms": int(os.environ.get("DURATION_MS", "0") or "0"),
-            "position_ms": int(os.environ.get("POSITION_MS", "0") or "0"),
-            "cover_url": cover_url,
-            "ts": now(),
-        }))
+    same_track = new_id and new_id == existing.get("track_id", "")
+    NOWPLAYING.write_text(json.dumps({
+        "event": "playing",
+        "name":      existing.get("name", "")    if same_track else "",
+        "artists":   existing.get("artists", "") if same_track else "",
+        "album":     existing.get("album", "")   if same_track else "",
+        "cover_url": existing.get("cover_url", "") if same_track else "",
+        "track_id": new_id or existing.get("track_id", ""),
+        "duration_ms": int(os.environ.get("DURATION_MS", "0") or "0"),
+        "position_ms": int(os.environ.get("POSITION_MS", "0") or "0"),
+        "ts": now(),
+    }))
 elif event == "paused":
     if NOWPLAYING.exists():
         try:
