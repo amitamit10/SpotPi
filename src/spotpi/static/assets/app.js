@@ -606,8 +606,8 @@ function escapeHtml(value) {
 
 const wizard = {
   step: 0,
-  totalSteps: 4,
-  data: { deviceName: "", audioDevice: null, bitrate: 320, normalisation: true },
+  totalSteps: 5,
+  data: { deviceName: "", audioDevice: null, bitrate: 320, normalisation: true, spotifyClientId: "" },
   devices: [],
 };
 
@@ -617,6 +617,7 @@ function openSetupWizard() {
   wizard.data.bitrate = state.config.quality.bitrate_kbps;
   wizard.data.normalisation = state.config.volume.normalisation_enabled;
   wizard.data.audioDevice = state.config.audio.device_selection === "manual" ? state.config.audio.device : null;
+  wizard.data.spotifyClientId = state.config.web.spotify_client_id || "";
   wizard.step = 0;
   wizard.devices = [];
   document.querySelector("#setup-wizard").classList.add("is-open");
@@ -649,7 +650,7 @@ function renderWizardStep() {
   prevBtn.className = `wizard-prev-btn${wizard.step > 0 ? " visible" : ""}`;
   nextBtn.textContent = wizard.step === wizard.totalSteps - 1 ? "Save & Restart" : "Next →";
   content.innerHTML = "";
-  [wizardStep0, wizardStep1, wizardStep2, wizardStep3][wizard.step](content);
+  [wizardStep0, wizardStep1, wizardStep2, wizardStep3, wizardStep4][wizard.step](content);
 }
 
 function wizardStep0(el) {
@@ -766,6 +767,44 @@ function wizardStep2(el) {
 }
 
 function wizardStep3(el) {
+  const redirectUri = window.location.origin + "/";
+  el.innerHTML = `
+    <div class="wizard-step-icon">&#127925;</div>
+    <h2 class="wizard-step-title">Skip &amp; Queue Controls</h2>
+    <p class="wizard-step-desc">Enable skip, previous and queue from the dashboard using the free Spotify API. Takes about 2 minutes.</p>
+
+    <div class="wizard-spotify-steps">
+      <div class="wizard-spotify-step">
+        <span class="wizard-spotify-num">1</span>
+        <span>Open <strong><a href="https://developer.spotify.com/dashboard" target="_blank" rel="noopener noreferrer">developer.spotify.com/dashboard</a></strong> and click <strong>Create app</strong></span>
+      </div>
+      <div class="wizard-spotify-step">
+        <span class="wizard-spotify-num">2</span>
+        <span>Fill in any name. Under <strong>Redirect URIs</strong> add exactly:<br>
+          <code class="wizard-uri">${escapeHtml(redirectUri)}</code>
+          <button type="button" class="wizard-copy-btn" onclick="navigator.clipboard?.writeText('${escapeHtml(redirectUri)}').then(()=>this.textContent='Copied!').catch(()=>{})">Copy</button>
+        </span>
+      </div>
+      <div class="wizard-spotify-step">
+        <span class="wizard-spotify-num">3</span>
+        <span>Check <strong>Web API</strong> under APIs used, save the app, then copy the <strong>Client ID</strong></span>
+      </div>
+      <div class="wizard-spotify-step">
+        <span class="wizard-spotify-num">4</span>
+        <span>Paste the Client ID below and finish the wizard — then click <strong>Connect Spotify</strong> on the dashboard</span>
+      </div>
+    </div>
+
+    <div class="wizard-field" style="margin-top:14px">
+      <label for="wiz-client-id">Client ID <span style="font-weight:400;color:var(--text-3)">(optional — skip to set up later)</span></label>
+      <input id="wiz-client-id" type="text" value="${escapeHtml(wizard.data.spotifyClientId)}"
+        placeholder="e.g. abc1234567890abcdef1234567890ab" autocomplete="off" spellcheck="false">
+    </div>
+  `;
+  el.querySelector("#wiz-client-id").addEventListener("input", e => { wizard.data.spotifyClientId = e.target.value.trim(); });
+}
+
+function wizardStep4(el) {
   const deviceLabel = wizard.data.audioDevice
     ? (wizard.devices.find(d => d.id === wizard.data.audioDevice)?.card_name || wizard.data.audioDevice)
     : "Auto (default)";
@@ -773,7 +812,7 @@ function wizardStep3(el) {
   el.innerHTML = `
     <div class="wizard-step-icon">&#9989;</div>
     <h2 class="wizard-step-title">All Set!</h2>
-    <p class="wizard-step-desc">Review your settings and tap Save & Restart to apply.</p>
+    <p class="wizard-step-desc">Review your settings and tap Save &amp; Restart to apply.</p>
     <div class="wizard-summary">
       <div class="wizard-summary-row">
         <span class="wizard-summary-label">Device Name</span>
@@ -791,10 +830,15 @@ function wizardStep3(el) {
         <span class="wizard-summary-label">Normalisation</span>
         <span class="wizard-summary-value">${wizard.data.normalisation ? "Enabled" : "Disabled"}</span>
       </div>
+      <div class="wizard-summary-row">
+        <span class="wizard-summary-label">Skip &amp; Queue</span>
+        <span class="wizard-summary-value">${wizard.data.spotifyClientId ? "Client ID set ✓" : "Not configured"}</span>
+      </div>
     </div>
     <div class="wizard-tip" style="margin-top:16px">
       <strong>After saving:</strong> Open Spotify, tap the speaker icon, and select
       <strong>${escapeHtml(wizard.data.deviceName || "SpotPi")}</strong> to start playing.
+      ${wizard.data.spotifyClientId ? "Then click <strong>Connect Spotify</strong> on the dashboard to activate skip &amp; queue." : ""}
     </div>
   `;
 }
@@ -809,6 +853,10 @@ async function wizardFinish() {
     state.config.audio.alsa_mixer_device = wizard.data.audioDevice.startsWith("hw:")
       ? wizard.data.audioDevice.replace(/,\d+$/, "")
       : wizard.data.audioDevice;
+  }
+  if (wizard.data.spotifyClientId) {
+    state.config.web.spotify_client_id = wizard.data.spotifyClientId;
+    localStorage.setItem("spotpiClientId", wizard.data.spotifyClientId);
   }
   const nextBtn = document.querySelector("#wizard-next");
   setBusy(nextBtn, true);
