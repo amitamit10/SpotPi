@@ -20,7 +20,8 @@ def now():
     return datetime.now().isoformat()
 
 
-if event in ("changed", "started", "playing"):
+if event in ("changed", "started"):
+    # Full metadata is available on changed/started events.
     covers = os.environ.get("COVERS", "")
     cover_url = covers.split()[0] if covers.strip() else ""
     NOWPLAYING.write_text(json.dumps({
@@ -34,6 +35,31 @@ if event in ("changed", "started", "playing"):
         "cover_url": cover_url,
         "ts": now(),
     }))
+elif event == "playing":
+    # librespot 0.8+ fires "playing" without track metadata — only update
+    # the event field so the UI knows playback resumed, keep the track info.
+    if NOWPLAYING.exists():
+        try:
+            data = json.loads(NOWPLAYING.read_text())
+            data["event"] = "playing"
+            NOWPLAYING.write_text(json.dumps(data))
+        except Exception:
+            pass
+    else:
+        # No prior state — write what we have (name/artists may be empty).
+        covers = os.environ.get("COVERS", "")
+        cover_url = covers.split()[0] if covers.strip() else ""
+        NOWPLAYING.write_text(json.dumps({
+            "event": event,
+            "name": os.environ.get("NAME", ""),
+            "artists": os.environ.get("ARTISTS", ""),
+            "album": os.environ.get("ALBUM", ""),
+            "track_id": os.environ.get("TRACK_ID", ""),
+            "duration_ms": int(os.environ.get("DURATION_MS", "0") or "0"),
+            "position_ms": int(os.environ.get("POSITION_MS", "0") or "0"),
+            "cover_url": cover_url,
+            "ts": now(),
+        }))
 elif event == "paused":
     if NOWPLAYING.exists():
         try:

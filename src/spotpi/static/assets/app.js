@@ -589,8 +589,8 @@ function startAutoRefresh() {
       Promise.allSettled([refreshStatus(), refreshMixer(), refreshNowPlaying()]);
     }, seconds * 1000);
   }
-  // Always poll now-playing every 5s regardless of main auto-refresh setting
-  setInterval(() => refreshNowPlaying().catch(() => {}), 5000);
+  // Always poll now-playing every 2s regardless of main auto-refresh setting
+  setInterval(() => refreshNowPlaying().catch(() => {}), 2000);
 }
 
 function escapeHtml(value) {

@@ -201,12 +201,26 @@ def parse_aplay_logical(output: str) -> list[str]:
     return names
 
 
+def pcm_to_ctl_device(device: str) -> str:
+    """Convert a PCM device name to an ALSA CTL device name for amixer.
+
+    amixer uses CTL devices (hw:CARD) not PCM devices (plughw:CARD=X,DEV=Y).
+    """
+    # Strip plug prefix: "plughw:..." -> "hw:..."
+    d = device.removeprefix("plug")
+    # Drop the device component: "hw:CARD=X,DEV=0" -> "hw:CARD=X"
+    d = d.split(",")[0]
+    # Normalise "hw:CARD=X" -> "hw:X"
+    d = re.sub(r"^(hw:)CARD=", r"\1", d)
+    return d
+
+
 def mixer_device(config: dict[str, Any]) -> str:
     audio = config["audio"]
     if audio["alsa_mixer_device"]:
-        return audio["alsa_mixer_device"]
+        return pcm_to_ctl_device(audio["alsa_mixer_device"])
     if audio["device_selection"] == "manual":
-        return audio["device"]
+        return pcm_to_ctl_device(audio["device"])
     return "default"
 
 
