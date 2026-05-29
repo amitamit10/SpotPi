@@ -9,6 +9,7 @@ import re
 import shlex
 import shutil
 import subprocess
+import urllib.request
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -33,6 +34,9 @@ from .system import (
 STATIC_DIR = Path(__file__).with_name("static")
 
 _JOURNAL_TRACK_RE = re.compile(r"Loading <(.+?)> with Spotify URI <(spotify:track:(\w+))>")
+_OG_RE = re.compile(r'<meta[^>]+property=["\']og:(\w+)["\']\s+content=["\'](.*?)["\']')
+_HTML_ENTITIES = {"&#x27;": "'", "&amp;": "&", "&quot;": '"', "&lt;": "<", "&gt;": ">"}
+_spotify_meta_cache: dict[str, dict[str, str]] = {}
 
 
 def _journal_track(config: dict[str, Any]) -> tuple[str, str]:
@@ -50,6 +54,39 @@ def _journal_track(config: dict[str, Any]) -> tuple[str, str]:
     except Exception:
         pass
     return "", ""
+
+
+def _fetch_spotify_meta(track_id: str) -> dict[str, str]:
+    """Fetch track name, artist, album and cover from Spotify open-graph tags.
+
+    Results are cached in memory for the server's lifetime so each track
+    only triggers one outbound request.
+    """
+    if track_id in _spotify_meta_cache:
+        return _spotify_meta_cache[track_id]
+    try:
+        url = f"https://open.spotify.com/track/{track_id}"
+        req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0 (compatible; Googlebot/2.1)"})
+        with urllib.request.urlopen(req, timeout=4) as resp:
+            html = resp.read().decode("utf-8", errors="replace")
+        og: dict[str, str] = {}
+        for m in _OG_RE.finditer(html):
+            val = m.group(2)
+            for ent, ch in _HTML_ENTITIES.items():
+                val = val.replace(ent, ch)
+            og[m.group(1)] = val
+        # og:description format: "Artist · Album · Song · Year"
+        parts = [p.strip() for p in og.get("description", "").split("·")]
+        meta = {
+            "name":      og.get("title", ""),
+            "artists":   parts[0] if parts and parts[0] else "",
+            "album":     parts[1] if len(parts) > 1 else "",
+            "cover_url": og.get("image", ""),
+        }
+        _spotify_meta_cache[track_id] = meta
+        return meta
+    except Exception:
+        return {}
 
 
 class ApiError(Exception):
@@ -190,6 +227,20 @@ class RequestHandler(BaseHTTPRequestHandler):
                     data["name"] = name
                     if not data.get("track_id") and track_id:
                         data["track_id"] = track_id
+            # Enrich missing artist / cover_url from Spotify open-graph tags.
+            # Fetched once per track_id and cached for the server's lifetime.
+            tid = data.get("track_id", "")
+            if tid and data.get("event") not in ("unknown", "stopped", "session_disconnected"):
+                if not data.get("artists") or not data.get("cover_url"):
+                    meta = _fetch_spotify_meta(tid)
+                    if not data.get("name") and meta.get("name"):
+                        data["name"] = meta["name"]
+                    if not data.get("artists") and meta.get("artists"):
+                        data["artists"] = meta["artists"]
+                    if not data.get("album") and meta.get("album"):
+                        data["album"] = meta["album"]
+                    if not data.get("cover_url") and meta.get("cover_url"):
+                        data["cover_url"] = meta["cover_url"]
             return data
         if method == "POST" and path == "/api/update":
             return self._run_update()
