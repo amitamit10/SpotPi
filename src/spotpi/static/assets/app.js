@@ -787,11 +787,15 @@ function wizardStep3(el) {
       </div>
       <div class="wizard-spotify-step">
         <span class="wizard-spotify-num">3</span>
-        <span>Check <strong>Web API</strong> under APIs used, save the app, then copy the <strong>Client ID</strong></span>
+        <span>Under <strong>Which API/SDKs are you planning to use?</strong> tick <strong>Web API</strong> only, then save</span>
       </div>
       <div class="wizard-spotify-step">
         <span class="wizard-spotify-num">4</span>
-        <span>Paste the Client ID below and finish the wizard — then click <strong>Connect Spotify</strong> on the dashboard</span>
+        <span>Copy the <strong>Client ID</strong> from the app overview page</span>
+      </div>
+      <div class="wizard-spotify-step">
+        <span class="wizard-spotify-num">5</span>
+        <span>Paste the Client ID below, finish the wizard, then click <strong>Connect Spotify</strong> on the dashboard</span>
       </div>
     </div>
 
