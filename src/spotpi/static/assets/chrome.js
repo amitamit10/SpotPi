@@ -283,8 +283,9 @@
   // to be populated (set by renderStatusHero).
   let attempts = 0;
   const waitForInit = setInterval(() => {
+    const heroLabel = document.querySelector("#hero-label");
     const name = document.querySelector("#hero-name");
-    if ((name && name.textContent && name.textContent !== "SpotPi") || ++attempts > 20) {
+    if ((heroLabel && heroLabel.textContent !== "Loading…") || ++attempts > 20) {
       clearInterval(waitForInit);
       refreshSidebarStats();
       if (idleHelpName && name) idleHelpName.textContent = name.textContent;

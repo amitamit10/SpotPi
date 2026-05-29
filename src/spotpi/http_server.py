@@ -232,12 +232,13 @@ class RequestHandler(BaseHTTPRequestHandler):
                     pass
 
         # Restart services in background after response is sent
+        config = load_config()
+        svc = config["service"]["spotify_service_name"]
+        web_svc = config["service"]["web_service_name"]
         subprocess.Popen(
             ["bash", "-c",
-             "sleep 2 && systemctl restart pi-connect-speaker.service"
-             " pi-connect-speaker-librespot.service 2>/dev/null"
-             " || sudo systemctl restart pi-connect-speaker.service"
-             " pi-connect-speaker-librespot.service 2>/dev/null"],
+             f"sleep 2 && systemctl restart {svc} {web_svc} 2>/dev/null"
+             f" || sudo systemctl restart {svc} {web_svc} 2>/dev/null"],
             start_new_session=True,
         )
         return {"ok": True, "output": pull_output, "copied": copied, "restarting": True}

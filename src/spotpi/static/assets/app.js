@@ -279,9 +279,12 @@ function renderStatusHero(status) {
   if (heroDot) heroDot.className = `hero-dot ${isOk ? "hero-dot--on" : "hero-dot--off"}`;
   if (heroLabel) heroLabel.textContent = isOk ? "Spotify Connect · Active" : "Spotify Connect · Inactive";
   if (heroName) heroName.textContent = status.device_name;
-  if (heroHint) heroHint.textContent = isOk
-    ? "Open Spotify → tap the speaker icon → select this device"
-    : "Service is not running — tap Start or Enable below";
+  if (heroHint) {
+    heroHint.textContent = isOk
+      ? "Open Spotify → tap the speaker icon → select this device"
+      : "Service is not running — tap Start or Enable below";
+    heroHint.hidden = false;
+  }
 }
 
 async function refreshStatus() {
