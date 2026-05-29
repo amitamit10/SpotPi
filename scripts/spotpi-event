@@ -1,11 +1,18 @@
 #!/usr/bin/env python3
-"""librespot --onevent handler. Writes current track info to /tmp/spotpi-nowplaying.json."""
+"""librespot --onevent handler. Writes current track info to nowplaying.json."""
 import json
 import os
 from datetime import datetime
 from pathlib import Path
 
-NOWPLAYING = Path("/tmp/spotpi-nowplaying.json")
+# Derive data dir from PCS_CONFIG so this works for both "spotpi" and
+# "pi-connect-speaker" installs, each of which has PrivateTmp=true in
+# their systemd units — /tmp is private and not shared between services.
+_config = os.environ.get("PCS_CONFIG", "/etc/spotpi/config.toml")
+_service_dir = Path(_config).parent.name  # e.g. "spotpi" or "pi-connect-speaker"
+_data_dir = Path(f"/var/lib/{_service_dir}")
+_data_dir.mkdir(parents=True, exist_ok=True)
+NOWPLAYING = _data_dir / "nowplaying.json"
 event = os.environ.get("PLAYER_EVENT", "")
 
 

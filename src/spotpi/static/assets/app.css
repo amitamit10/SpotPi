@@ -138,6 +138,14 @@ button:disabled { cursor: wait; opacity: .55; }
 }
 .icon-btn--accent:hover { background: var(--accent-strong); border-color: var(--accent-strong); color: var(--accent-ink); }
 
+.setup-btn {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 0 14px; height: 36px; border-radius: 10px; min-height: 0;
+  background: var(--accent); border-color: var(--accent); color: var(--accent-ink);
+  font-size: 13px; font-weight: 600;
+}
+.setup-btn:hover { background: var(--accent-strong); border-color: var(--accent-strong); color: var(--accent-ink); }
+
 /* ── topbar ───────────────────────────────────────────────────────────────── */
 .topbar {
   position: sticky; top: 0; z-index: 20;

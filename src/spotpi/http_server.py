@@ -147,12 +147,18 @@ class RequestHandler(BaseHTTPRequestHandler):
             name = path.rsplit("/", 1)[-1]
             return delete_profile(config, name)
         if method == "GET" and path == "/api/nowplaying":
-            nowplaying = Path("/tmp/spotpi-nowplaying.json")
-            if nowplaying.exists():
-                try:
-                    return json.loads(nowplaying.read_text())
-                except Exception:
-                    pass
+            # Both services use PrivateTmp=true so /tmp is not shared between
+            # them. Use /var/lib/<service-name>/ which is in ReadWritePaths.
+            service_name = default_config_path().parent.name
+            for candidate in [
+                Path("/var/lib") / service_name / "nowplaying.json",
+                Path("/tmp/spotpi-nowplaying.json"),
+            ]:
+                if candidate.exists():
+                    try:
+                        return json.loads(candidate.read_text())
+                    except Exception:
+                        pass
             return {"event": "unknown"}
         if method == "POST" and path == "/api/update":
             return self._run_update()
