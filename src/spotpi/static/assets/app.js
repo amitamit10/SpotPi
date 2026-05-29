@@ -781,8 +781,8 @@ function wizardStep3(el) {
       <div class="wizard-spotify-step">
         <span class="wizard-spotify-num">2</span>
         <span>Fill in any name. Under <strong>Redirect URIs</strong> add exactly:<br>
-          <code class="wizard-uri">${escapeHtml(redirectUri)}</code>
-          <button type="button" class="wizard-copy-btn" onclick="navigator.clipboard?.writeText('${escapeHtml(redirectUri)}').then(()=>this.textContent='Copied!').catch(()=>{})">Copy</button>
+          <code class="wizard-uri" id="wiz-redirect-uri">${escapeHtml(redirectUri)}</code>
+          <button type="button" class="wizard-copy-btn" id="wiz-copy-uri">Copy</button>
         </span>
       </div>
       <div class="wizard-spotify-step">
@@ -802,6 +802,21 @@ function wizardStep3(el) {
     </div>
   `;
   el.querySelector("#wiz-client-id").addEventListener("input", e => { wizard.data.spotifyClientId = e.target.value.trim(); });
+
+  el.querySelector("#wiz-copy-uri").addEventListener("click", function () {
+    const text = redirectUri;
+    // Works on HTTP (no secure context required)
+    const ta = document.createElement("textarea");
+    ta.value = text;
+    ta.style.cssText = "position:fixed;opacity:0;top:0;left:0";
+    document.body.appendChild(ta);
+    ta.focus();
+    ta.select();
+    try { document.execCommand("copy"); this.textContent = "Copied!"; }
+    catch (_) { this.textContent = "Failed"; }
+    document.body.removeChild(ta);
+    setTimeout(() => { this.textContent = "Copy"; }, 2000);
+  });
 }
 
 function wizardStep4(el) {
