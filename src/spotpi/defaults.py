@@ -17,6 +17,7 @@ DEFAULT_CONFIG = {
         "auth_pin": "",
         "theme": "system",
         "accent_color": "#1ed760",
+        "spotify_client_id": "",
     },
     "audio": {
         "backend": "alsa",
@@ -158,6 +159,7 @@ CONFIG_SCHEMA = {
         {"key": "auth_pin", "label": "PIN", "type": "secret"},
         {"key": "theme", "label": "Theme", "type": "enum", "choices": ["system", "light", "dark"]},
         {"key": "accent_color", "label": "Accent color", "type": "string"},
+        {"key": "spotify_client_id", "label": "Spotify Client ID (for skip/queue)", "type": "string"},
     ],
     "audio": [
         {

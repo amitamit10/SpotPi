@@ -366,9 +366,49 @@ button:disabled { cursor: wait; opacity: .55; }
 .idle-help strong { color: var(--text); font-weight: 600; }
 .idle-help svg { flex: none; color: var(--accent); margin-top: 2px; }
 
+/* Playback controls (skip + queue) */
+.playback-row {
+  display: flex; align-items: center; justify-content: center; gap: 10px;
+  padding: 14px 24px 0;
+}
+.playback-btn {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 0 16px; height: 38px; border-radius: var(--radius-sm); min-height: 0;
+  background: var(--surface-2); border: 1px solid var(--line);
+  color: var(--text); font-size: 13px; font-weight: 500;
+  transition: background .15s, border-color .15s;
+}
+.playback-btn:hover:not(:disabled) { background: var(--surface-3); border-color: var(--line-2); }
+.playback-btn:disabled { opacity: .35; cursor: default; }
+.playback-btn--queue { color: var(--text-2); font-size: 12.5px; }
+.spotify-connect-hint {
+  display: flex; align-items: center; justify-content: center; gap: 6px;
+  padding: 8px 24px 0;
+  font-size: 12px; color: var(--text-3);
+}
+.spotify-connect-hint a { color: var(--accent); text-decoration: none; font-weight: 600; }
+.spotify-connect-hint a:hover { text-decoration: underline; }
+
+/* Queue sheet */
+.sheet--tall { max-height: 80vh; display: flex; flex-direction: column; }
+.queue-list { flex: 1; overflow-y: auto; }
+.queue-item {
+  display: grid; grid-template-columns: 22px 36px 1fr auto;
+  gap: 10px; align-items: center;
+  padding: 9px 12px; border-radius: 9px;
+}
+.queue-item:hover { background: var(--surface-2); }
+.queue-num { font-size: 12px; color: var(--text-3); text-align: right; font-variant-numeric: tabular-nums; }
+.queue-art { width: 36px; height: 36px; border-radius: 5px; object-fit: cover; background: var(--surface-3); flex-shrink: 0; }
+.queue-art--empty { background: var(--surface-3); border-radius: 5px; }
+.queue-meta { min-width: 0; }
+.queue-name { display: block; font-size: 13.5px; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.queue-artist { display: block; font-size: 12px; color: var(--text-3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin-top: 1px; }
+.queue-dur { font-size: 12px; color: var(--text-3); font-variant-numeric: tabular-nums; white-space: nowrap; }
+
 /* Player controls */
 .player-controls {
-  padding: 18px 24px 22px;
+  padding: 14px 24px 22px;
   border-top: 1px solid var(--line);
   display: grid; gap: 12px;
 }
