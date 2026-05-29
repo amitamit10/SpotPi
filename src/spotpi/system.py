@@ -254,7 +254,9 @@ def best_mixer_control(config: dict[str, Any], device: str) -> str:
     control = config["audio"]["alsa_mixer_control"]
     timeout = command_timeout(config)
     check = run_command(["amixer", "-D", device, "sget", control], timeout=timeout)
-    if check.ok and "pvolume" in check.stdout:
+    # Accept pvolume (hardware) or volume (ALSA softvol plugin) capability
+    if check.ok and ("pvolume" in check.stdout or (
+            "Capabilities: volume" in check.stdout and "Playback channels" in check.stdout)):
         return control
     # Configured control is capture-only or missing — find first playback control
     scontents = run_command(["amixer", "-D", device, "scontents"], timeout=timeout)
@@ -263,7 +265,7 @@ def best_mixer_control(config: dict[str, Any], device: str) -> str:
         m = re.match(r"Simple mixer control '(.+?)'", line.strip())
         if m:
             current = m.group(1)
-        elif current and "pvolume" in line:
+        elif current and ("pvolume" in line or "Capabilities: volume" in line):
             return current
     return control
 
