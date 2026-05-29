@@ -244,9 +244,33 @@ def parse_amixer_controls(output: str) -> list[str]:
     return controls
 
 
+def best_mixer_control(config: dict[str, Any], device: str) -> str:
+    """Return the configured mixer control, falling back to the first playback control.
+
+    Some USB DACs name their playback control 'Speaker' rather than 'PCM'.
+    If the configured control has no playback volume capability (pvolume),
+    scan scontents for the first control that does.
+    """
+    control = config["audio"]["alsa_mixer_control"]
+    timeout = command_timeout(config)
+    check = run_command(["amixer", "-D", device, "sget", control], timeout=timeout)
+    if check.ok and "pvolume" in check.stdout:
+        return control
+    # Configured control is capture-only or missing — find first playback control
+    scontents = run_command(["amixer", "-D", device, "scontents"], timeout=timeout)
+    current: str | None = None
+    for line in scontents.stdout.splitlines():
+        m = re.match(r"Simple mixer control '(.+?)'", line.strip())
+        if m:
+            current = m.group(1)
+        elif current and "pvolume" in line:
+            return current
+    return control
+
+
 def mixer_state(config: dict[str, Any]) -> dict[str, Any]:
     device = mixer_device(config)
-    control = config["audio"]["alsa_mixer_control"]
+    control = best_mixer_control(config, device)
     result = run_command(["amixer", "-D", device, "sget", control], timeout=command_timeout(config))
     return {
         "device": device,
@@ -267,7 +291,7 @@ def parse_amixer_volume(output: str) -> int | None:
 def set_mixer_volume(config: dict[str, Any], percent: int) -> CommandResult:
     bounded = max(0, min(int(percent), 100))
     device = mixer_device(config)
-    control = config["audio"]["alsa_mixer_control"]
+    control = best_mixer_control(config, device)
     return run_command(
         ["amixer", "-D", device, "sset", control, f"{bounded}%"],
         timeout=command_timeout(config),
