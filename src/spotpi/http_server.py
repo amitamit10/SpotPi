@@ -2,14 +2,19 @@
 
 from __future__ import annotations
 
+import base64
 import glob
+import hashlib
 import json
 import mimetypes
+import os
 import re
+import secrets
 import shlex
 import shutil
 import subprocess
 import time
+import urllib.parse
 import urllib.request
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -42,6 +47,129 @@ _last_ui_vol_ts: float = 0.0   # monotonic timestamp of last web-UI volume set
 def _stamp_ui_vol() -> None:
     global _last_ui_vol_ts
     _last_ui_vol_ts = time.monotonic()
+
+
+# ---------------------------------------------------------------------------
+# Spotify Web API helpers (server-side PKCE + token proxy)
+# ---------------------------------------------------------------------------
+_SP_TOKEN_FILE = Path("/var/lib/pi-connect-speaker/spotify_token.json")
+_SP_STATE_FILE = Path("/var/lib/pi-connect-speaker/spotify_pkce_state.json")
+_SP_SCOPES = "user-read-playback-state user-modify-playback-state user-read-currently-playing"
+
+
+def _sp_token_file() -> Path:
+    """Return the token path under the correct service data dir."""
+    service_name = default_config_path().parent.name
+    return Path("/var/lib") / service_name / "spotify_token.json"
+
+
+def _sp_state_file() -> Path:
+    service_name = default_config_path().parent.name
+    return Path("/var/lib") / service_name / "spotify_pkce_state.json"
+
+
+def _sp_make_auth_url(client_id: str, redirect_uri: str) -> dict[str, str]:
+    """Generate a PKCE auth URL server-side (crypto.subtle not available on HTTP)."""
+    verifier = secrets.token_urlsafe(48)
+    digest = hashlib.sha256(verifier.encode()).digest()
+    challenge = base64.urlsafe_b64encode(digest).rstrip(b"=").decode()
+    state = secrets.token_urlsafe(16)
+    _sp_state_file().parent.mkdir(parents=True, exist_ok=True)
+    _sp_state_file().write_text(json.dumps({"verifier": verifier, "state": state, "redirect_uri": redirect_uri}))
+    params = urllib.parse.urlencode({
+        "client_id": client_id,
+        "response_type": "code",
+        "redirect_uri": redirect_uri,
+        "code_challenge_method": "S256",
+        "code_challenge": challenge,
+        "state": state,
+        "scope": _SP_SCOPES,
+    })
+    return {"url": f"https://accounts.spotify.com/authorize?{params}"}
+
+
+def _sp_exchange_code(code: str) -> dict[str, Any]:
+    """Exchange an auth code for tokens using the stored PKCE verifier."""
+    sf = _sp_state_file()
+    if not sf.exists():
+        raise ApiError(HTTPStatus.BAD_REQUEST, "No PKCE state found — start auth again")
+    state = json.loads(sf.read_text())
+    body = urllib.parse.urlencode({
+        "grant_type": "authorization_code",
+        "code": code,
+        "redirect_uri": state["redirect_uri"],
+        "client_id": _sp_client_id(),
+        "code_verifier": state["verifier"],
+    }).encode()
+    req = urllib.request.Request(
+        "https://accounts.spotify.com/api/token",
+        data=body,
+        headers={"Content-Type": "application/x-www-form-urlencoded"},
+        method="POST",
+    )
+    with urllib.request.urlopen(req, timeout=10) as resp:
+        token = json.loads(resp.read())
+    token["expires_at"] = int(time.time()) + int(token.get("expires_in", 3600))
+    _sp_token_file().parent.mkdir(parents=True, exist_ok=True)
+    _sp_token_file().write_text(json.dumps(token))
+    sf.unlink(missing_ok=True)
+    return {"ok": True}
+
+
+def _sp_client_id() -> str:
+    try:
+        return load_config()["web"]["spotify_client_id"]
+    except Exception:
+        return ""
+
+
+def _sp_access_token() -> str:
+    """Return a valid access token, refreshing if needed."""
+    tf = _sp_token_file()
+    if not tf.exists():
+        raise ApiError(HTTPStatus.UNAUTHORIZED, "Not connected to Spotify — use Connect Spotify")
+    token = json.loads(tf.read_text())
+    if int(time.time()) < token.get("expires_at", 0) - 60:
+        return token["access_token"]
+    # Refresh
+    body = urllib.parse.urlencode({
+        "grant_type": "refresh_token",
+        "refresh_token": token["refresh_token"],
+        "client_id": _sp_client_id(),
+    }).encode()
+    req = urllib.request.Request(
+        "https://accounts.spotify.com/api/token",
+        data=body,
+        headers={"Content-Type": "application/x-www-form-urlencoded"},
+        method="POST",
+    )
+    with urllib.request.urlopen(req, timeout=10) as resp:
+        refreshed = json.loads(resp.read())
+    refreshed["expires_at"] = int(time.time()) + int(refreshed.get("expires_in", 3600))
+    if "refresh_token" not in refreshed:
+        refreshed["refresh_token"] = token["refresh_token"]
+    _sp_token_file().write_text(json.dumps(refreshed))
+    return refreshed["access_token"]
+
+
+def _sp_api(path: str, method: str = "GET") -> dict[str, Any]:
+    """Call the Spotify Web API and return parsed JSON (or {} for 204)."""
+    access = _sp_access_token()
+    req = urllib.request.Request(
+        f"https://api.spotify.com/v1{path}",
+        method=method,
+        headers={"Authorization": f"Bearer {access}"},
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            body = resp.read()
+            return json.loads(body) if body else {}
+    except urllib.error.HTTPError as exc:
+        if exc.code == 204:
+            return {}
+        raise ApiError(HTTPStatus.BAD_GATEWAY, f"Spotify API error {exc.code}")
+
+
 _OG_RE = re.compile(r'<meta[^>]+property=["\']og:(\w+)["\']\s+content=["\'](.*?)["\']')
 _HTML_ENTITIES = {"&#x27;": "'", "&amp;": "&", "&quot;": '"', "&lt;": "<", "&gt;": ">"}
 _spotify_meta_cache: dict[str, dict[str, str]] = {}
@@ -279,6 +407,30 @@ class RequestHandler(BaseHTTPRequestHandler):
             return data
         if method == "POST" and path == "/api/update":
             return self._run_update()
+        # Spotify Web API proxy (server-side PKCE so crypto.subtle isn't needed on HTTP)
+        if method == "GET" and path == "/api/spotify/auth-url":
+            client_id = config["web"]["spotify_client_id"]
+            if not client_id:
+                raise ApiError(HTTPStatus.BAD_REQUEST, "Set a Spotify Client ID in Advanced → Web UI settings first")
+            redirect_uri = query.get("redirect_uri", [""])[0]
+            if not redirect_uri:
+                raise ApiError(HTTPStatus.BAD_REQUEST, "redirect_uri required")
+            return _sp_make_auth_url(client_id, redirect_uri)
+        if method == "POST" and path == "/api/spotify/callback":
+            payload = self.read_json()
+            return _sp_exchange_code(str(payload.get("code", "")))
+        if method == "GET" and path == "/api/spotify/status":
+            try:
+                _sp_access_token()
+                return {"connected": True}
+            except ApiError:
+                return {"connected": False}
+        if method == "POST" and path == "/api/spotify/next":
+            return _sp_api("/me/player/next", "POST")
+        if method == "POST" and path == "/api/spotify/previous":
+            return _sp_api("/me/player/previous", "POST")
+        if method == "GET" and path == "/api/spotify/queue":
+            return _sp_api("/me/player/queue")
         raise ApiError(HTTPStatus.NOT_FOUND, "Not found")
 
     def _run_update(self) -> dict[str, Any]:

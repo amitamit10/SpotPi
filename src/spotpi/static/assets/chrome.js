@@ -297,174 +297,125 @@
 
 })();
 
-/* ── Spotify skip + queue (PKCE OAuth) ──────────────────────────── */
+/* ── Spotify skip + queue (server-side PKCE — works on HTTP) ─────── */
 (function () {
   "use strict";
 
-  const SCOPES = "user-read-playback-state user-modify-playback-state user-read-currently-playing";
+  /* All Spotify API calls go through the Pi server so crypto.subtle
+     (HTTPS-only) is never needed in the browser. */
 
-  /* token helpers */
-  function clientId() { return localStorage.getItem("spotpiClientId") || ""; }
-  function storedToken() {
-    const t = localStorage.getItem("spotpiSpToken");
-    const exp = Number(localStorage.getItem("spotpiSpExpires") || 0);
-    return t && Date.now() < exp - 60000 ? t : null;
-  }
-  async function refreshToken() {
-    const id = clientId(), ref = localStorage.getItem("spotpiSpRefresh");
-    if (!id || !ref) return null;
-    try {
-      const r = await fetch("https://accounts.spotify.com/api/token", {
-        method: "POST",
-        headers: { "Content-Type": "application/x-www-form-urlencoded" },
-        body: new URLSearchParams({ grant_type: "refresh_token", refresh_token: ref, client_id: id }),
-      });
-      const d = await r.json();
-      if (d.access_token) {
-        localStorage.setItem("spotpiSpToken", d.access_token);
-        localStorage.setItem("spotpiSpExpires", String(Date.now() + d.expires_in * 1000));
-        if (d.refresh_token) localStorage.setItem("spotpiSpRefresh", d.refresh_token);
-        return d.access_token;
-      }
-    } catch (_) {}
-    return null;
-  }
-  async function validToken() { return storedToken() || await refreshToken(); }
-
-  /* PKCE helpers */
-  async function pkce() {
-    const arr = crypto.getRandomValues(new Uint8Array(32));
-    const verifier = btoa(String.fromCharCode(...arr)).replace(/\+/g, "-").replace(/\//g, "_").replace(/=/g, "");
-    const hash = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(verifier));
-    const challenge = btoa(String.fromCharCode(...new Uint8Array(hash))).replace(/\+/g, "-").replace(/\//g, "_").replace(/=/g, "");
-    return { verifier, challenge };
-  }
-  async function startAuth() {
-    const id = clientId();
-    if (!id) { spToast("Enter your Spotify Client ID in Advanced → Web UI settings first", true); return; }
-    const { verifier, challenge } = await pkce();
-    const redirectUri = window.location.origin + window.location.pathname;
-    localStorage.setItem("spotpiPkceVerifier", verifier);
-    localStorage.setItem("spotpiPkceRedirect", redirectUri);
-    window.location.href = "https://accounts.spotify.com/authorize?" + new URLSearchParams({
-      client_id: id, response_type: "code", redirect_uri: redirectUri,
-      code_challenge_method: "S256", code_challenge: challenge, scope: SCOPES,
-    });
-  }
-  async function exchangeCode(code) {
-    const id = clientId();
-    const verifier = localStorage.getItem("spotpiPkceVerifier");
-    const redirectUri = localStorage.getItem("spotpiPkceRedirect") || window.location.origin + window.location.pathname;
-    try {
-      const r = await fetch("https://accounts.spotify.com/api/token", {
-        method: "POST",
-        headers: { "Content-Type": "application/x-www-form-urlencoded" },
-        body: new URLSearchParams({ grant_type: "authorization_code", code, redirect_uri: redirectUri, client_id: id, code_verifier: verifier }),
-      });
-      const d = await r.json();
-      if (d.access_token) {
-        localStorage.setItem("spotpiSpToken", d.access_token);
-        localStorage.setItem("spotpiSpExpires", String(Date.now() + d.expires_in * 1000));
-        if (d.refresh_token) localStorage.setItem("spotpiSpRefresh", d.refresh_token);
-        history.replaceState({}, "", window.location.pathname);
-        return true;
-      }
-    } catch (_) {}
-    return false;
+  async function spApi(path, method = "GET") {
+    const r = await fetch("/api/spotify" + path, { method, headers: { "Content-Type": "application/json" } });
+    if (!r.ok) {
+      const d = await r.json().catch(() => ({}));
+      throw new Error(d.error || r.statusText);
+    }
+    return r.json().catch(() => ({}));
   }
 
-  /* Spotify API fetch */
-  async function spFetch(path, method = "GET") {
-    const token = await validToken();
-    if (!token) return null;
-    const r = await fetch("https://api.spotify.com/v1" + path, { method, headers: { Authorization: "Bearer " + token } });
-    if (r.status === 204 || r.status === 202 || r.status === 200 && r.headers.get("content-length") === "0") return {};
-    if (!r.ok) return null;
-    return r.json().catch(() => null);
-  }
-
-  /* UI state */
   function setConnected(yes) {
-    document.querySelector("#skip-prev")?.removeAttribute("disabled");
-    document.querySelector("#skip-next")?.removeAttribute("disabled");
     const hint = document.querySelector("#spotify-connect-hint");
     if (hint) hint.hidden = yes;
-    if (!yes) {
-      document.querySelector("#skip-prev")?.setAttribute("disabled", "");
-      document.querySelector("#skip-next")?.setAttribute("disabled", "");
+    const prev = document.querySelector("#skip-prev");
+    const next = document.querySelector("#skip-next");
+    if (yes) {
+      prev?.removeAttribute("disabled");
+      next?.removeAttribute("disabled");
+    } else {
+      prev?.setAttribute("disabled", "");
+      next?.setAttribute("disabled", "");
     }
   }
 
-  /* queue sheet */
+  async function startAuth() {
+    const redirectUri = window.location.origin + window.location.pathname;
+    try {
+      const d = await spApi(`/auth-url?redirect_uri=${encodeURIComponent(redirectUri)}`);
+      window.location.href = d.url;
+    } catch (e) {
+      spToast(e.message, true);
+    }
+  }
+
+  /* queue */
   const queueSheet = document.querySelector("#queue-sheet");
   const queueList  = document.querySelector("#queue-sheet-list");
   function msToTime(ms) { const s = Math.floor(ms / 1000); return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`; }
   function esc(s) { return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"); }
+
   async function openQueue() {
     if (!queueSheet) return;
     queueSheet.hidden = false;
     if (queueList) queueList.innerHTML = `<div style="padding:16px;color:var(--text-3)">Loading…</div>`;
-    const token = await validToken();
-    if (!token) {
-      if (queueList) queueList.innerHTML = `<div style="padding:16px;color:var(--text-3)">Connect Spotify first to see the queue.</div>`;
-      return;
+    try {
+      const data = await spApi("/queue");
+      if (!queueList) return;
+      if (!data.queue?.length) {
+        queueList.innerHTML = `<div style="padding:16px;color:var(--text-3)">Queue is empty</div>`;
+        return;
+      }
+      queueList.innerHTML = "";
+      data.queue.slice(0, 30).forEach((track, i) => {
+        const artists = (track.artists || []).map(a => a.name).join(", ");
+        const art = track.album?.images?.[2]?.url || track.album?.images?.[0]?.url || "";
+        const item = document.createElement("div");
+        item.className = "queue-item";
+        item.innerHTML = `
+          <span class="queue-num">${i + 1}</span>
+          ${art ? `<img class="queue-art" src="${esc(art)}" alt="" loading="lazy">` : `<div class="queue-art queue-art--empty"></div>`}
+          <span class="queue-meta">
+            <span class="queue-name">${esc(track.name)}</span>
+            <span class="queue-artist">${esc(artists)}</span>
+          </span>
+          <span class="queue-dur">${msToTime(track.duration_ms)}</span>`;
+        queueList.appendChild(item);
+      });
+    } catch (e) {
+      if (queueList) queueList.innerHTML = `<div style="padding:16px;color:var(--danger)">${esc(e.message)}</div>`;
     }
-    const data = await spFetch("/me/player/queue");
-    if (!queueList) return;
-    if (!data || !Array.isArray(data.queue) || !data.queue.length) {
-      queueList.innerHTML = `<div style="padding:16px;color:var(--text-3)">Queue is empty</div>`;
-      return;
-    }
-    queueList.innerHTML = "";
-    data.queue.slice(0, 30).forEach((track, i) => {
-      const artists = (track.artists || []).map(a => a.name).join(", ");
-      const art = track.album?.images?.[2]?.url || track.album?.images?.[0]?.url || "";
-      const item = document.createElement("div");
-      item.className = "queue-item";
-      item.innerHTML = `
-        <span class="queue-num">${i + 1}</span>
-        ${art ? `<img class="queue-art" src="${esc(art)}" alt="" loading="lazy">` : `<div class="queue-art queue-art--empty"></div>`}
-        <span class="queue-meta">
-          <span class="queue-name">${esc(track.name)}</span>
-          <span class="queue-artist">${esc(artists)}</span>
-        </span>
-        <span class="queue-dur">${msToTime(track.duration_ms)}</span>`;
-      queueList.appendChild(item);
-    });
   }
+
   document.querySelector("#show-queue")?.addEventListener("click", openQueue);
   document.querySelector("#queue-sheet-close")?.addEventListener("click", () => { if (queueSheet) queueSheet.hidden = true; });
   queueSheet?.addEventListener("click", e => { if (e.target === queueSheet) queueSheet.hidden = true; });
 
-  /* skip buttons */
   document.querySelector("#skip-prev")?.addEventListener("click", async () => {
-    await spFetch("/me/player/previous", "POST");
-    setTimeout(() => document.querySelector("#refresh-status")?.click(), 800);
+    try { await spApi("/previous", "POST"); setTimeout(() => document.querySelector("#refresh-status")?.click(), 800); }
+    catch (e) { spToast(e.message, true); }
   });
   document.querySelector("#skip-next")?.addEventListener("click", async () => {
-    await spFetch("/me/player/next", "POST");
-    setTimeout(() => document.querySelector("#refresh-status")?.click(), 800);
+    try { await spApi("/next", "POST"); setTimeout(() => document.querySelector("#refresh-status")?.click(), 800); }
+    catch (e) { spToast(e.message, true); }
   });
 
-  /* connect button */
   document.querySelector("#spotify-connect-btn")?.addEventListener("click", e => { e.preventDefault(); startAuth(); });
 
-  /* sync client_id from settings, handle OAuth callback */
+  /* handle OAuth callback: Spotify redirects back with ?code=... */
   async function init() {
-    try {
-      const r = await fetch("/api/settings");
-      const d = await r.json();
-      const id = d?.config?.web?.spotify_client_id || "";
-      if (id) localStorage.setItem("spotpiClientId", id);
-    } catch (_) {}
-
     const params = new URLSearchParams(window.location.search);
     const code = params.get("code");
     if (code) {
-      const ok = await exchangeCode(code);
-      spToast(ok ? "Spotify connected! Skip and queue are now enabled." : "Spotify connection failed", !ok);
+      history.replaceState({}, "", window.location.pathname);
+      try {
+        await fetch("/api/spotify/callback", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ code }),
+        });
+        spToast("Spotify connected! Skip and queue are now enabled.");
+        setConnected(true);
+        return;
+      } catch (_) {
+        spToast("Spotify connection failed — try again", true);
+      }
     }
-    setConnected(!!storedToken());
+    // Check existing connection
+    try {
+      const d = await spApi("/status");
+      setConnected(d.connected === true);
+    } catch (_) {
+      setConnected(false);
+    }
   }
   init();
 
