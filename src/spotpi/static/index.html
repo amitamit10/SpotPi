@@ -99,17 +99,8 @@
           </div>
         </div>
 
-        <!-- Volume + Output -->
+        <!-- Output -->
         <div class="player-controls">
-          <div class="vol-row">
-            <span class="ctrl-icon" aria-hidden="true">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" width="16" height="16"><path d="M11 5L6 9H2v6h4l5 4V5z"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/><path d="M18.5 5.5a9 9 0 0 1 0 13"/></svg>
-            </span>
-            <input id="dash-volume" class="vol-slider" type="range" min="0" max="100" value="50" aria-label="Volume">
-            <span id="dash-volume-label" class="vol-val">—</span>
-            <button id="dash-set-volume" type="button" hidden>Set</button>
-          </div>
-
           <button id="output-picker" class="output-btn" type="button">
             <span class="ctrl-icon" aria-hidden="true">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><rect x="6" y="3" width="12" height="18" rx="2"/><circle cx="12" cy="14" r="3"/><circle cx="12" cy="7" r=".5" fill="currentColor"/></svg>
@@ -258,16 +249,6 @@
             </div>
           </div>
           <div id="audio-devices" class="device-list"></div>
-          <div class="mixer">
-            <div>
-              <h3>Mixer</h3>
-              <p id="mixer-state" class="muted">Loading</p>
-            </div>
-            <div class="range-row">
-              <input id="mixer-volume" type="range" min="0" max="100" value="40">
-              <button id="set-volume" type="button">Set Volume</button>
-            </div>
-          </div>
         </section>
 
         <section id="profiles-panel" class="panel">
@@ -349,6 +330,12 @@
   <!-- Hidden aliases app.js expects -->
   <div hidden aria-hidden="true">
     <span id="device-subtitle"></span>
+    <input id="dash-volume" type="range" min="0" max="100" value="50">
+    <span id="dash-volume-label"></span>
+    <button id="dash-set-volume" type="button">Set</button>
+    <input id="mixer-volume" type="range" min="0" max="100" value="40">
+    <button id="set-volume" type="button">Set Volume</button>
+    <p id="mixer-state"></p>
   </div>
 
   <script src="/assets/app.js"></script>
