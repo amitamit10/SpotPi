@@ -5,6 +5,7 @@ from __future__ import annotations
 import glob
 import json
 import mimetypes
+import re
 import shlex
 import shutil
 import subprocess
@@ -30,6 +31,25 @@ from .system import (
 )
 
 STATIC_DIR = Path(__file__).with_name("static")
+
+_JOURNAL_TRACK_RE = re.compile(r"Loading <(.+?)> with Spotify URI <(spotify:track:(\w+))>")
+
+
+def _journal_track(config: dict[str, Any]) -> tuple[str, str]:
+    """Return (name, track_id) of the most recently loaded track from journal logs."""
+    try:
+        service = config["service"]["spotify_service_name"]
+        result = subprocess.run(
+            ["journalctl", "-u", service, "-n", "200", "--no-pager", "--output=cat"],
+            text=True, capture_output=True, timeout=5,
+        )
+        matches = _JOURNAL_TRACK_RE.findall(result.stdout)
+        if matches:
+            name, _uri, track_id = matches[-1]
+            return name, track_id
+    except Exception:
+        pass
+    return "", ""
 
 
 class ApiError(Exception):
@@ -150,16 +170,27 @@ class RequestHandler(BaseHTTPRequestHandler):
             # Both services use PrivateTmp=true so /tmp is not shared between
             # them. Use /var/lib/<service-name>/ which is in ReadWritePaths.
             service_name = default_config_path().parent.name
+            data: dict[str, Any] = {"event": "unknown"}
             for candidate in [
                 Path("/var/lib") / service_name / "nowplaying.json",
                 Path("/tmp/spotpi-nowplaying.json"),
             ]:
                 if candidate.exists():
                     try:
-                        return json.loads(candidate.read_text())
+                        data = json.loads(candidate.read_text())
+                        break
                     except Exception:
                         pass
-            return {"event": "unknown"}
+            # If the track name is missing (happens when librespot fires a
+            # "playing" event on startup without metadata), fall back to the
+            # most recent "Loading <name>" line in the service journal.
+            if not data.get("name") and data.get("event") != "unknown":
+                name, track_id = _journal_track(config)
+                if name:
+                    data["name"] = name
+                    if not data.get("track_id") and track_id:
+                        data["track_id"] = track_id
+            return data
         if method == "POST" and path == "/api/update":
             return self._run_update()
         raise ApiError(HTTPStatus.NOT_FOUND, "Not found")
