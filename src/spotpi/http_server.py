@@ -37,6 +37,11 @@ STATIC_DIR = Path(__file__).with_name("static")
 _JOURNAL_TRACK_RE = re.compile(r"Loading <(.+?)> with Spotify URI <(spotify:track:(\w+))>")
 _JOURNAL_VOL_RE = re.compile(r"volume is now (\d+)")
 _last_ui_vol_ts: float = 0.0   # monotonic timestamp of last web-UI volume set
+
+
+def _stamp_ui_vol() -> None:
+    global _last_ui_vol_ts
+    _last_ui_vol_ts = time.monotonic()
 _OG_RE = re.compile(r'<meta[^>]+property=["\']og:(\w+)["\']\s+content=["\'](.*?)["\']')
 _HTML_ENTITIES = {"&#x27;": "'", "&amp;": "&", "&quot;": '"', "&lt;": "<", "&gt;": ">"}
 _spotify_meta_cache: dict[str, dict[str, str]] = {}
@@ -193,9 +198,8 @@ class RequestHandler(BaseHTTPRequestHandler):
                         state["volume_percent"] = spotify_vol
             return state
         if method == "POST" and path == "/api/audio/volume":
-            global _last_ui_vol_ts
-            _last_ui_vol_ts = time.monotonic()
             payload = self.read_json()
+            _stamp_ui_vol()
             return set_mixer_volume(config, int(payload.get("percent", 0))).as_dict()
         if method == "GET" and path == "/api/logs":
             lines = int(query.get("lines", [config["diagnostics"]["log_lines"]])[0])
