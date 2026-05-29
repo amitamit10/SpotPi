@@ -9,6 +9,7 @@ import re
 import shlex
 import shutil
 import subprocess
+import time
 import urllib.request
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -34,6 +35,8 @@ from .system import (
 STATIC_DIR = Path(__file__).with_name("static")
 
 _JOURNAL_TRACK_RE = re.compile(r"Loading <(.+?)> with Spotify URI <(spotify:track:(\w+))>")
+_JOURNAL_VOL_RE = re.compile(r"volume is now (\d+)")
+_last_ui_vol_ts: float = 0.0   # monotonic timestamp of last web-UI volume set
 _OG_RE = re.compile(r'<meta[^>]+property=["\']og:(\w+)["\']\s+content=["\'](.*?)["\']')
 _HTML_ENTITIES = {"&#x27;": "'", "&amp;": "&", "&quot;": '"', "&lt;": "<", "&gt;": ">"}
 _spotify_meta_cache: dict[str, dict[str, str]] = {}
@@ -54,6 +57,22 @@ def _journal_track(config: dict[str, Any]) -> tuple[str, str]:
     except Exception:
         pass
     return "", ""
+
+
+def _journal_spotify_volume(config: dict[str, Any]) -> int | None:
+    """Return the most recent Spotify volume (0-100) from the librespot journal."""
+    try:
+        service = config["service"]["spotify_service_name"]
+        result = subprocess.run(
+            ["journalctl", "-u", service, "-n", "100", "--no-pager", "--output=cat"],
+            text=True, capture_output=True, timeout=5,
+        )
+        matches = _JOURNAL_VOL_RE.findall(result.stdout)
+        if matches:
+            return round(int(matches[-1]) / 65535 * 100)
+    except Exception:
+        pass
+    return None
 
 
 def _fetch_spotify_meta(track_id: str) -> dict[str, str]:
@@ -162,8 +181,20 @@ class RequestHandler(BaseHTTPRequestHandler):
         if method == "GET" and path == "/api/audio/devices":
             return list_audio_devices(config)
         if method == "GET" and path == "/api/audio/mixer":
-            return mixer_state(config)
+            state = mixer_state(config)
+            # Sync ALSA control from Spotify journal when the web UI
+            # hasn't touched volume in the last 10 s.
+            if time.monotonic() - _last_ui_vol_ts > 10:
+                spotify_vol = _journal_spotify_volume(config)
+                if spotify_vol is not None:
+                    current = state.get("volume_percent") or 0
+                    if abs(current - spotify_vol) > 2:
+                        set_mixer_volume(config, spotify_vol)
+                        state["volume_percent"] = spotify_vol
+            return state
         if method == "POST" and path == "/api/audio/volume":
+            global _last_ui_vol_ts
+            _last_ui_vol_ts = time.monotonic()
             payload = self.read_json()
             return set_mixer_volume(config, int(payload.get("percent", 0))).as_dict()
         if method == "GET" and path == "/api/logs":
