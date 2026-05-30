@@ -58,7 +58,9 @@ def build_librespot_args(config: dict[str, Any], include_executable: bool = True
         args.append("--enable-volume-normalisation")
         args.extend(["--normalisation-method", volume["normalisation_method"]])
         args.extend(["--normalisation-gain-type", volume["normalisation_gain_type"]])
-        args.extend(["--normalisation-pregain", str(volume["normalisation_pregain_db"])])
+        calibration_gain = float(config.get("calibration", {}).get("gain_db", 0.0))
+        effective_pregain = round(float(volume["normalisation_pregain_db"]) + calibration_gain, 2)
+        args.extend(["--normalisation-pregain", str(effective_pregain)])
         args.extend(["--normalisation-threshold", str(volume["normalisation_threshold_dbfs"])])
 
     quality = config["quality"]

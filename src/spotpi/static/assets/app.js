@@ -113,6 +113,8 @@ function renderSettings() {
   applyTheme();
   applyVisibility();
   els.form.innerHTML = "";
+  if (section === "equalizer") { renderEqualizerSection(); return; }
+  if (section === "calibration") { renderCalibrationSection(); return; }
   for (const field of state.schema.fields[section]) {
     els.form.append(renderField(section, field, state.config[section][field.key]));
   }
@@ -963,5 +965,308 @@ document.querySelector("#dash-set-volume").addEventListener("click", async () =>
 for (const button of document.querySelectorAll("[data-service-action]")) {
   button.addEventListener("click", () => serviceAction(button.dataset.serviceTarget, button.dataset.serviceAction).catch((error) => showNotice(error.message, true)));
 }
+
+// ── Equalizer ──────────────────────────────────────────────────────────────
+
+const EQ_BANDS = [
+  { key: "band_31hz_db",    label: "31Hz"  },
+  { key: "band_63hz_db",    label: "63Hz"  },
+  { key: "band_125hz_db",   label: "125Hz" },
+  { key: "band_250hz_db",   label: "250Hz" },
+  { key: "band_500hz_db",   label: "500Hz" },
+  { key: "band_1000hz_db",  label: "1kHz"  },
+  { key: "band_2000hz_db",  label: "2kHz"  },
+  { key: "band_4000hz_db",  label: "4kHz"  },
+  { key: "band_8000hz_db",  label: "8kHz"  },
+  { key: "band_16000hz_db", label: "16kHz" },
+];
+
+const EQ_PRESETS = {
+  flat:         [ 0,  0,  0,  0,  0,  0,  0,  0,  0,  0],
+  bass_boost:   [ 7,  6,  4,  2,  1,  0, -1, -1,  0,  0],
+  treble_boost: [ 0,  0,  0,  0, -1, -1,  1,  3,  5,  7],
+  rock:         [ 5,  4,  3,  1, -1, -1,  1,  3,  4,  5],
+  pop:          [-1,  0,  1,  3,  4,  3,  2,  1,  0, -1],
+  classical:    [ 4,  3,  2,  1,  0,  0,  0,  1,  2,  3],
+  jazz:         [ 3,  2,  1,  2, -1, -1,  2,  3,  2,  1],
+  vocal:        [-2, -1,  0,  1,  4,  5,  4,  2,  0, -1],
+};
+
+function _matchEqPreset() {
+  const current = EQ_BANDS.map(b => state.config.equalizer[b.key] || 0);
+  for (const [name, vals] of Object.entries(EQ_PRESETS)) {
+    if (vals.every((v, i) => v === current[i])) return name;
+  }
+  return null;
+}
+
+function renderEqualizerSection() {
+  const eq = state.config.equalizer;
+  const form = els.form;
+
+  // Enable toggle row
+  const enableRow = document.createElement("div");
+  enableRow.className = "eq-enable-row";
+  const enableLabel = document.createElement("label");
+  enableLabel.textContent = "Enable Equalizer";
+  const toggle = document.createElement("div");
+  toggle.className = "toggle";
+  const chk = document.createElement("input");
+  chk.type = "checkbox";
+  chk.checked = Boolean(eq.enabled);
+  chk.addEventListener("change", () => { state.config.equalizer.enabled = chk.checked; });
+  toggle.append(chk);
+  enableRow.append(enableLabel, toggle);
+  form.append(enableRow);
+
+  // ALSA availability note — fetched lazily
+  const statusNote = document.createElement("div");
+  statusNote.className = "eq-status-note";
+  statusNote.textContent = "Checking ALSA equal plugin…";
+  form.append(statusNote);
+  api("/api/equalizer").then(data => {
+    if (data.available) {
+      statusNote.className = "eq-status-note eq-status-note--ok";
+      statusNote.textContent = "ALSA equal plugin active — changes apply immediately.";
+    } else {
+      statusNote.className = "eq-status-note eq-status-note--warn";
+      statusNote.textContent = "ALSA equal plugin not found. Install libasound2-plugin-equal to enable hardware EQ. Settings are saved and will apply once the plugin is available.";
+    }
+  }).catch(() => { statusNote.textContent = ""; });
+
+  // Preset buttons
+  const presetsRow = document.createElement("div");
+  presetsRow.className = "eq-presets";
+  for (const name of Object.keys(EQ_PRESETS)) {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "eq-preset-btn";
+    btn.dataset.preset = name;
+    btn.textContent = name.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase());
+    if (name === (eq.preset || "flat")) btn.classList.add("active");
+    btn.addEventListener("click", () => {
+      const vals = EQ_PRESETS[name];
+      EQ_BANDS.forEach((band, i) => {
+        state.config.equalizer[band.key] = vals[i];
+        const sl = document.getElementById(`eqsl-${band.key}`);
+        const lb = document.getElementById(`eqdb-${band.key}`);
+        if (sl) sl.value = String(vals[i]);
+        if (lb) lb.textContent = _fmtDb(vals[i]);
+      });
+      state.config.equalizer.preset = name;
+      presetsRow.querySelectorAll(".eq-preset-btn").forEach(b => b.classList.remove("active"));
+      btn.classList.add("active");
+    });
+    presetsRow.append(btn);
+  }
+  form.append(presetsRow);
+
+  // Band sliders grid
+  const grid = document.createElement("div");
+  grid.className = "eq-grid";
+  for (const band of EQ_BANDS) {
+    const col = document.createElement("div");
+    col.className = "eq-band";
+
+    const dbLabel = document.createElement("div");
+    dbLabel.className = "eq-db-label";
+    dbLabel.id = `eqdb-${band.key}`;
+    dbLabel.textContent = _fmtDb(eq[band.key] || 0);
+
+    const wrap = document.createElement("div");
+    wrap.className = "eq-track-wrap";
+
+    const slider = document.createElement("input");
+    slider.type = "range";
+    slider.className = "eq-slider";
+    slider.id = `eqsl-${band.key}`;
+    slider.min = "-12";
+    slider.max = "12";
+    slider.step = "1";
+    slider.value = String(eq[band.key] || 0);
+    slider.addEventListener("input", () => {
+      const val = parseInt(slider.value, 10);
+      state.config.equalizer[band.key] = val;
+      dbLabel.textContent = _fmtDb(val);
+      const matched = _matchEqPreset();
+      presetsRow.querySelectorAll(".eq-preset-btn").forEach(b => {
+        b.classList.toggle("active", b.dataset.preset === matched);
+      });
+      if (matched) state.config.equalizer.preset = matched;
+    });
+
+    const freqLabel = document.createElement("div");
+    freqLabel.className = "eq-freq-label";
+    freqLabel.textContent = band.label;
+
+    wrap.append(slider);
+    col.append(dbLabel, wrap, freqLabel);
+    grid.append(col);
+  }
+  form.append(grid);
+
+  // Action buttons
+  const actions = document.createElement("div");
+  actions.className = "eq-actions";
+  const saveBtn = document.createElement("button");
+  saveBtn.type = "button";
+  saveBtn.className = "primary";
+  saveBtn.textContent = "Save & Apply";
+  saveBtn.addEventListener("click", () => saveEqualizer(saveBtn));
+  const resetBtn = document.createElement("button");
+  resetBtn.type = "button";
+  resetBtn.textContent = "Reset to Flat";
+  resetBtn.addEventListener("click", () => resetEqualizer());
+  actions.append(saveBtn, resetBtn);
+  form.append(actions);
+}
+
+function _fmtDb(v) {
+  return v > 0 ? `+${v}` : `${v}`;
+}
+
+async function saveEqualizer(btn) {
+  setBusy(btn, true);
+  try {
+    const payload = await api("/api/equalizer", {
+      method: "PUT",
+      body: JSON.stringify({ equalizer: state.config.equalizer }),
+    });
+    if (payload.ok) {
+      state.config.equalizer = payload.equalizer;
+      showNotice("Equalizer saved");
+    } else {
+      showNotice("Save failed", true);
+    }
+  } catch (e) {
+    showNotice(e.message, true);
+  } finally {
+    setBusy(btn, false);
+  }
+}
+
+async function resetEqualizer() {
+  try {
+    const payload = await api("/api/equalizer/reset", { method: "POST", body: "{}" });
+    if (payload.ok) {
+      EQ_BANDS.forEach(band => { state.config.equalizer[band.key] = 0; });
+      state.config.equalizer.preset = "flat";
+      renderSettings();
+      showNotice("Equalizer reset to flat");
+    }
+  } catch (e) {
+    showNotice(e.message, true);
+  }
+}
+
+// ── Calibration ────────────────────────────────────────────────────────────
+
+function renderCalibrationSection() {
+  const cal = state.config.calibration;
+  const form = els.form;
+
+  // Info block
+  const info = document.createElement("div");
+  info.className = "cal-info";
+  info.innerHTML = "<strong>What is calibration?</strong> Adds a fixed gain offset to all playback, "
+    + "compensating for hardware sensitivity differences. Use the test tone to judge your listening level, "
+    + "then adjust the gain until it feels right. This is applied on top of the normalisation pregain.";
+  form.append(info);
+
+  // Enable toggle
+  const enableRow = document.createElement("div");
+  enableRow.className = "cal-field";
+  const enableLabel = document.createElement("label");
+  enableLabel.textContent = "Enable calibration gain";
+  const toggle = document.createElement("div");
+  toggle.className = "toggle";
+  const chk = document.createElement("input");
+  chk.type = "checkbox";
+  chk.checked = Boolean(cal.enabled);
+  chk.addEventListener("change", () => { state.config.calibration.enabled = chk.checked; });
+  toggle.append(chk);
+  enableRow.append(enableLabel, toggle);
+  form.append(enableRow);
+
+  // Gain slider
+  const gainField = document.createElement("div");
+  gainField.className = "cal-field";
+  const gainLabel = document.createElement("label");
+  gainLabel.textContent = "Calibration gain";
+  const gainRow = document.createElement("div");
+  gainRow.className = "cal-slider-row";
+  const gainSlider = document.createElement("input");
+  gainSlider.type = "range";
+  gainSlider.className = "cal-slider";
+  gainSlider.min = "-12";
+  gainSlider.max = "12";
+  gainSlider.step = "0.5";
+  gainSlider.value = String(cal.gain_db || 0);
+  const gainVal = document.createElement("span");
+  gainVal.className = "cal-db-label";
+  gainVal.textContent = `${cal.gain_db >= 0 ? "+" : ""}${Number(cal.gain_db).toFixed(1)} dB`;
+  gainSlider.addEventListener("input", () => {
+    const v = parseFloat(gainSlider.value);
+    state.config.calibration.gain_db = v;
+    gainVal.textContent = `${v >= 0 ? "+" : ""}${v.toFixed(1)} dB`;
+  });
+  gainRow.append(gainSlider, gainVal);
+  gainField.append(gainLabel, gainRow);
+  form.append(gainField);
+
+  // Reference level slider
+  const refField = document.createElement("div");
+  refField.className = "cal-field";
+  const refLabel = document.createElement("label");
+  refLabel.textContent = "Reference level (EBU R128 target)";
+  const refRow = document.createElement("div");
+  refRow.className = "cal-slider-row";
+  const refSlider = document.createElement("input");
+  refSlider.type = "range";
+  refSlider.className = "cal-slider";
+  refSlider.min = "-40";
+  refSlider.max = "-10";
+  refSlider.step = "1";
+  refSlider.value = String(cal.reference_level_dbfs || -23);
+  const refVal = document.createElement("span");
+  refVal.className = "cal-db-label";
+  refVal.textContent = `${Number(cal.reference_level_dbfs).toFixed(0)} dBFS`;
+  refSlider.addEventListener("input", () => {
+    const v = parseFloat(refSlider.value);
+    state.config.calibration.reference_level_dbfs = v;
+    refVal.textContent = `${v.toFixed(0)} dBFS`;
+  });
+  refRow.append(refSlider, refVal);
+  refField.append(refLabel, refRow);
+  form.append(refField);
+
+  // Action buttons
+  const actions = document.createElement("div");
+  actions.className = "cal-actions";
+  const testBtn = document.createElement("button");
+  testBtn.type = "button";
+  testBtn.textContent = "Play Test Tone";
+  testBtn.addEventListener("click", () => testSound().catch(e => showNotice(e.message, true)));
+  const saveBtn = document.createElement("button");
+  saveBtn.type = "button";
+  saveBtn.className = "primary";
+  saveBtn.textContent = "Save";
+  saveBtn.addEventListener("click", () => saveCalibration(saveBtn));
+  actions.append(testBtn, saveBtn);
+  form.append(actions);
+}
+
+async function saveCalibration(btn) {
+  setBusy(btn, true);
+  try {
+    await saveSettings();
+  } catch (e) {
+    showNotice(e.message, true);
+  } finally {
+    setBusy(btn, false);
+  }
+}
+
+// ── init ───────────────────────────────────────────────────────────────────
 
 init().catch((error) => showNotice(error.message, true));
