@@ -964,4 +964,45 @@ for (const button of document.querySelectorAll("[data-service-action]")) {
   button.addEventListener("click", () => serviceAction(button.dataset.serviceTarget, button.dataset.serviceAction).catch((error) => showNotice(error.message, true)));
 }
 
-init().catch((error) => showNotice(error.message, true));
+// ── Spotify Connect OAuth flow ──────────────────────────────────────────────
+
+async function checkSpotifyConnected() {
+  const hint = document.querySelector("#spotify-connect-hint");
+  if (!hint) return;
+  try {
+    const status = await api("/api/spotify/status");
+    hint.hidden = status.connected;
+  } catch (_) {
+    hint.hidden = false;
+  }
+}
+
+async function startSpotifyConnect() {
+  const clientId = state.config?.web?.spotify_client_id;
+  if (!clientId) {
+    showNotice("Open the setup wizard and add your Spotify Client ID first", true);
+    return;
+  }
+  const redirectUri = window.location.origin + "/";
+  let authUrl;
+  try {
+    const payload = await api(`/api/spotify/auth-url?${new URLSearchParams({ redirect_uri: redirectUri })}`);
+    authUrl = payload.url;
+  } catch (err) {
+    showNotice(err.message, true);
+    return;
+  }
+
+  // Open Spotify auth in current tab — Spotify will redirect back to the Pi at redirectUri
+  window.location.href = authUrl;
+}
+
+const connectBtn = document.querySelector("#spotify-connect-btn");
+if (connectBtn) {
+  connectBtn.addEventListener("click", (e) => {
+    e.preventDefault();
+    startSpotifyConnect().catch((err) => showNotice(err.message, true));
+  });
+}
+
+init().then(() => checkSpotifyConnected()).catch((error) => showNotice(error.message, true));

@@ -14,6 +14,8 @@ import shlex
 import shutil
 import subprocess
 import time
+import html as html_module
+import urllib.error
 import urllib.parse
 import urllib.request
 from http import HTTPStatus
@@ -107,8 +109,14 @@ def _sp_exchange_code(code: str) -> dict[str, Any]:
         headers={"Content-Type": "application/x-www-form-urlencoded"},
         method="POST",
     )
-    with urllib.request.urlopen(req, timeout=10) as resp:
-        token = json.loads(resp.read())
+    try:
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            token = json.loads(resp.read())
+    except urllib.error.HTTPError as exc:
+        body = exc.read().decode("utf-8", errors="replace")
+        raise ApiError(HTTPStatus.BAD_GATEWAY, f"Spotify token exchange failed: {body}") from exc
+    except urllib.error.URLError as exc:
+        raise ApiError(HTTPStatus.BAD_GATEWAY, f"Could not reach Spotify: {exc.reason}") from exc
     token["expires_at"] = int(time.time()) + int(token.get("expires_in", 3600))
     _sp_token_file().parent.mkdir(parents=True, exist_ok=True)
     _sp_token_file().write_text(json.dumps(token))
@@ -143,8 +151,14 @@ def _sp_access_token() -> str:
         headers={"Content-Type": "application/x-www-form-urlencoded"},
         method="POST",
     )
-    with urllib.request.urlopen(req, timeout=10) as resp:
-        refreshed = json.loads(resp.read())
+    try:
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            refreshed = json.loads(resp.read())
+    except urllib.error.HTTPError as exc:
+        body = exc.read().decode("utf-8", errors="replace")
+        raise ApiError(HTTPStatus.BAD_GATEWAY, f"Spotify token refresh failed: {body}") from exc
+    except urllib.error.URLError as exc:
+        raise ApiError(HTTPStatus.BAD_GATEWAY, f"Could not reach Spotify: {exc.reason}") from exc
     refreshed["expires_at"] = int(time.time()) + int(refreshed.get("expires_in", 3600))
     if "refresh_token" not in refreshed:
         refreshed["refresh_token"] = token["refresh_token"]
@@ -269,6 +283,10 @@ class RequestHandler(BaseHTTPRequestHandler):
     def dispatch(self, method: str) -> None:
         parsed = urlparse(self.path)
         try:
+            # Spotify OAuth callback: redirected here after the user authorises
+            if method == "GET" and parsed.path == "/" and "code" in parse_qs(parsed.query):
+                self._handle_oauth_callback(parse_qs(parsed.query))
+                return
             if parsed.path.startswith("/api/"):
                 self.ensure_authorized(parsed.path)
                 payload = self.handle_api(method, parsed.path, parse_qs(parsed.query))
@@ -283,6 +301,46 @@ class RequestHandler(BaseHTTPRequestHandler):
             self.send_json({"error": str(exc)}, status=HTTPStatus.BAD_REQUEST)
         except Exception as exc:  # pragma: no cover - final safety net for the UI
             self.send_json({"error": str(exc)}, status=HTTPStatus.INTERNAL_SERVER_ERROR)
+
+    def _handle_oauth_callback(self, query: dict[str, list[str]]) -> None:
+        code = (query.get("code") or [None])[0]
+        state = (query.get("state") or [None])[0]
+        sf = _sp_state_file()
+        if not code or not state or not sf.exists():
+            self.serve_static("/")
+            return
+        stored = json.loads(sf.read_text())
+        if stored.get("state") != state:
+            self.serve_static("/")
+            return
+        try:
+            _sp_exchange_code(code)
+            html = (
+                "<html><head><title>SpotPi — Spotify Connected</title>"
+                "<style>body{font-family:sans-serif;text-align:center;padding:60px;"
+                "background:#0d0d0d;color:#fff}h2{color:#1db954}p{color:#aaa}a{color:#1db954}</style></head>"
+                "<body><h2>Spotify account connected!</h2>"
+                "<p>Redirecting back to SpotPi&hellip;</p>"
+                "<a href='/'>Back to SpotPi</a>"
+                "<script>setTimeout(()=>{window.location.href='/'},2500)</script>"
+                "</body></html>"
+            )
+        except Exception as exc:
+            html = (
+                "<html><head><title>SpotPi — Error</title>"
+                "<style>body{font-family:sans-serif;text-align:center;padding:60px;"
+                "background:#0d0d0d;color:#fff}h2{color:#e74c3c}p{color:#aaa}a{color:#1db954}</style></head>"
+                f"<body><h2>Error connecting Spotify</h2>"
+                f"<p>{html_module.escape(str(exc))}</p>"
+                "<a href='/'>Back to SpotPi</a></body></html>"
+            )
+        body = html.encode("utf-8")
+        self.send_response(200)
+        self.send_header("Content-Type", "text/html; charset=utf-8")
+        self.send_header("Content-Length", str(len(body)))
+        self.send_header("Cache-Control", "no-store")
+        self.end_headers()
+        self.wfile.write(body)
 
     def ensure_authorized(self, path: str) -> None:
         if path == "/api/schema":
