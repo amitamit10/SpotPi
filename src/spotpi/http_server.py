@@ -243,6 +243,7 @@ def _sp_player_state() -> dict[str, Any]:
 _OG_RE = re.compile(r'<meta[^>]+property=["\']og:(\w+)["\']\s+content=["\'](.*?)["\']')
 _HTML_ENTITIES = {"&#x27;": "'", "&amp;": "&", "&quot;": '"', "&lt;": "<", "&gt;": ">"}
 _spotify_meta_cache: dict[str, dict[str, str]] = {}
+_META_CACHE_MAX = 256  # bound memory on an always-on device
 
 
 def _journal_track(config: dict[str, Any]) -> tuple[str, str]:
@@ -305,6 +306,8 @@ def _fetch_spotify_meta(track_id: str) -> dict[str, str]:
             "album":     parts[1] if len(parts) > 1 else "",
             "cover_url": og.get("image", ""),
         }
+        while len(_spotify_meta_cache) >= _META_CACHE_MAX:
+            _spotify_meta_cache.pop(next(iter(_spotify_meta_cache)))
         _spotify_meta_cache[track_id] = meta
         return meta
     except Exception:

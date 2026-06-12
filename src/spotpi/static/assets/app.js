@@ -25,18 +25,20 @@ const els = {
   backupList: document.querySelector("#backup-list"),
 };
 
-async function api(path, options = {}) {
+async function api(path, options = {}, attempt = 0) {
   const response = await fetch(path, {
     headers: { "Content-Type": "application/json", ...authHeaders(), ...(options.headers || {}) },
     ...options,
   });
   const payload = await response.json();
   if (!response.ok) {
-    if (response.status === 401) {
+    // Re-prompt for the PIN at most 3 times so a wrong PIN can't trap the
+    // user in an endless prompt loop.
+    if (response.status === 401 && attempt < 3) {
       const pin = window.prompt("PIN");
       if (pin) {
         localStorage.setItem("spotpiPin", pin);
-        return api(path, options);
+        return api(path, options, attempt + 1);
       }
     }
     throw new Error(payload.error || response.statusText);
@@ -160,6 +162,11 @@ function renderField(section, field, value) {
   } else if (field.type === "string_list") {
     input = document.createElement("textarea");
     input.value = Array.isArray(value) ? value.join("\n") : "";
+    wrapper.append(input);
+  } else if (field.format === "color") {
+    input = document.createElement("input");
+    input.type = "color";
+    input.value = /^#[0-9a-fA-F]{6}$/.test(value || "") ? value : "#1ed760";
     wrapper.append(input);
   } else {
     input = document.createElement("input");
@@ -439,6 +446,15 @@ function renderNowPlaying(data) {
     art.textContent = "♫";
     labelText.textContent = "Now Playing";
   }
+
+  // Reflect playback in the browser tab title
+  const active = ["playing", "changed", "started", "paused"].includes(event) && data.name;
+  if (active) {
+    const prefix = event === "paused" ? "⏸ " : "";
+    document.title = `${prefix}${data.name}${data.artists ? ` — ${data.artists}` : ""} · SpotPi`;
+  } else {
+    document.title = "SpotPi";
+  }
 }
 
 async function refreshMixer() {
@@ -468,6 +484,8 @@ async function refreshLogs() {
   const lines = document.querySelector("#log-lines")?.value || state.config.diagnostics.log_lines;
   const payload = await api(`/api/logs?target=${encodeURIComponent(target)}&lines=${encodeURIComponent(lines)}`);
   els.logs.textContent = payload.stdout || payload.stderr || "No logs returned";
+  // journalctl returns oldest-first; jump to the most recent entries
+  els.logs.scrollTop = els.logs.scrollHeight;
 }
 
 async function refreshPreview() {

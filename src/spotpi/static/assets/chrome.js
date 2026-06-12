@@ -18,16 +18,16 @@
   "use strict";
 
   /* ── tiny API helper (mirrors app.js api(), but self-contained) ── */
-  async function apiFetch(path, options = {}) {
+  async function apiFetch(path, options = {}, attempt = 0) {
     const pin = localStorage.getItem("spotpiPin");
     const headers = { "Content-Type": "application/json", ...(options.headers || {}) };
     if (pin) headers["X-SpotPi-Pin"] = pin;
     const res = await fetch(path, { ...options, headers });
     const data = await res.json();
     if (!res.ok) {
-      if (res.status === 401) {
+      if (res.status === 401 && attempt < 3) {
         const entered = window.prompt("PIN");
-        if (entered) { localStorage.setItem("spotpiPin", entered); return apiFetch(path, options); }
+        if (entered) { localStorage.setItem("spotpiPin", entered); return apiFetch(path, options, attempt + 1); }
       }
       throw new Error(data.error || res.statusText);
     }

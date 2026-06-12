@@ -158,7 +158,7 @@ CONFIG_SCHEMA = {
         {"key": "auth_mode", "label": "Authentication", "type": "enum", "choices": ["none", "pin"]},
         {"key": "auth_pin", "label": "PIN", "type": "secret"},
         {"key": "theme", "label": "Theme", "type": "enum", "choices": ["system", "light", "dark"]},
-        {"key": "accent_color", "label": "Accent color", "type": "string"},
+        {"key": "accent_color", "label": "Accent color", "type": "string", "format": "color"},
         {"key": "spotify_client_id", "label": "Spotify Client ID (for skip/queue)", "type": "string"},
     ],
     "audio": [
