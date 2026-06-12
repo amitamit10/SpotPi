@@ -36,7 +36,7 @@ Browser  ──── HTTP/REST ──── Python API ──── systemd/ALS
 | Component | Implementation |
 |-----------|---------------|
 | HTTP Server | `ThreadingHTTPServer` with custom request routing |
-| REST API | 18 endpoints — JSON in/out, proper HTTP status codes |
+| REST API | 30+ endpoints — JSON in/out, proper HTTP status codes |
 | Config Engine | TOML schema with validation, atomic writes, auto-backup |
 | Process Manager | `subprocess` + systemd integration (start/stop/restart/logs) |
 | Audio Layer | ALSA device enumeration and mixer control via `subprocess` |
@@ -69,11 +69,14 @@ Browser  ──── HTTP/REST ──── Python API ──── systemd/ALS
 ## Features
 
 **Dashboard**
-- Now-playing metadata (track, artist, album) via librespot event hooks
+- Now-playing metadata (track, artist, album, cover art) via librespot event hooks
+- Play/pause, skip, shuffle and repeat controls with a live progress bar (Spotify Web API)
+- Up-next queue and recently-played history sheets
+- Sleep timer: pause or stop playback after a chosen duration, with live countdown
 - Power toggle to enable/disable Spotify Connect
-- Live volume slider synced to ALSA mixer
 - Audio output device selector (enumerates available ALSA PCM devices)
-- System stats: IP address, CPU usage, RAM, temperature, uptime
+- System stats: IP address, live CPU usage, RAM, temperature, uptime
+- Keyboard shortcuts (Space = play/pause, ←/→ = skip) and PWA install support
 
 **Advanced Settings (95 configurable options across 12 sections)**
 - Device name/type, timezone, language
@@ -86,10 +89,12 @@ Browser  ──── HTTP/REST ──── Python API ──── systemd/ALS
 - Log level, zeroconf backend, OAuth token management
 
 **Operations**
-- Doctor command — per-check diagnostics (ALSA, network, services, binary)
-- Configuration backups with dated rotation (keeps last 20)
+- Doctor command — per-check diagnostics (ALSA, network, services, binary, CPU temp, disk space)
+- Configuration backups with dated rotation (keeps last 20) plus one-click export/import
 - Named profiles — save and restore complete setting sets
+- Log viewer with selectable depth and one-click download
 - Test-sound command for hardware speaker verification
+- `/api/health` liveness endpoint for external monitoring
 - One-click update (git pull + hot-reload, no restart required for static assets)
 
 ---
@@ -98,20 +103,25 @@ Browser  ──── HTTP/REST ──── Python API ──── systemd/ALS
 
 ```
 src/spotpi/
-├── http_server.py     # Request router + 18 REST endpoints
+├── http_server.py     # Request router + 30+ REST endpoints
 ├── config.py          # TOML schema validation, atomic writes, backup engine
 ├── librespot.py       # CLI argument builder from config
 ├── system.py          # systemd + ALSA + journal wrappers
-├── diagnostics.py     # Health-check runner
+├── diagnostics.py     # Health-check runner + CPU/memory/disk sampling
+├── history.py         # Recently-played track store
+├── sleeptimer.py      # Sleep timer (pause/stop after a delay)
 ├── profiles.py        # Named config snapshots
 ├── cli.py             # CLI entry points (serve, doctor, profiles)
 ├── defaults.py        # Config schema and defaults
 └── static/
     ├── index.html     # SPA shell
+    ├── icon.svg       # Favicon / PWA icon
+    ├── manifest.webmanifest
     └── assets/
-        ├── app.js     # Application logic (~900 LOC)
-        ├── chrome.js  # UI event handling (~300 LOC)
-        └── app.css    # Responsive styles
+        ├── app.js       # Application logic (~1000 LOC)
+        ├── chrome.js    # UI event handling (~400 LOC)
+        ├── features.js  # Player controls, history, sleep timer (~400 LOC)
+        └── app.css      # Responsive styles
 ```
 
 ### Data Flow
@@ -131,11 +141,17 @@ src/spotpi/
 | Method | Endpoint | Description |
 |--------|----------|-------------|
 | `GET` | `/api/schema` | Configuration schema |
+| `GET` | `/api/health` | Liveness: version + server uptime (no auth) |
 | `GET` | `/api/settings` | Current config |
 | `PUT` | `/api/settings` | Save config (triggers service restart) |
+| `GET` | `/api/settings/export` | Download config as TOML |
+| `POST` | `/api/settings/import` | Import config from TOML text |
 | `GET` | `/api/status` | Playback status |
 | `GET` | `/api/nowplaying` | Current track metadata |
-| `GET` | `/api/system` | CPU, RAM, temp, uptime |
+| `GET` | `/api/history` | Recently played tracks (last 50) |
+| `DELETE` | `/api/history` | Clear playback history |
+| `GET/POST/DELETE` | `/api/sleep-timer` | Query, start, or cancel the sleep timer |
+| `GET` | `/api/system` | CPU, RAM, load, temp, uptime |
 | `GET` | `/api/doctor` | Diagnostics report |
 | `GET` | `/api/audio/devices` | Available ALSA devices |
 | `GET` | `/api/audio/mixer` | Mixer state |
@@ -147,6 +163,8 @@ src/spotpi/
 | `POST` | `/api/backups/restore` | Restore backup |
 | `GET` | `/api/profiles` | List profiles |
 | `POST` | `/api/profiles/{save|load|delete}` | Manage profiles |
+| `GET` | `/api/spotify/player` | Player state (progress, shuffle, repeat) |
+| `POST` | `/api/spotify/{play\|pause\|next\|previous\|shuffle\|repeat}` | Playback control |
 | `POST` | `/api/update` | Git pull + hot-reload |
 
 </details>
