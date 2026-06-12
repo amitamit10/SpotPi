@@ -20,13 +20,13 @@
 
   const $ = (sel) => document.querySelector(sel);
 
-  /* Raw fetch helper for the Spotify proxy: a 401 here means "not
-     connected", which must NOT trigger app.js's PIN prompt loop. */
-  async function spotifyApi(path, options = {}) {
+  /* Raw fetch helper: a 401 here must NOT trigger app.js's PIN prompt
+     loop (it usually just means "Spotify not connected"). */
+  async function rawApi(path, options = {}) {
     const pin = localStorage.getItem("spotpiPin");
     const headers = { "Content-Type": "application/json", ...(options.headers || {}) };
     if (pin) headers["X-SpotPi-Pin"] = pin;
-    const res = await fetch("/api/spotify" + path, { ...options, headers });
+    const res = await fetch(path, { ...options, headers });
     const data = await res.json().catch(() => ({}));
     if (!res.ok) {
       const err = new Error(data.error || res.statusText);
@@ -35,6 +35,8 @@
     }
     return data;
   }
+
+  const spotifyApi = (path, options = {}) => rawApi("/api/spotify" + path, options);
 
   /* ────────────────────────────── player controls + progress ── */
   const playPauseBtn = $("#play-pause");
@@ -78,7 +80,7 @@
 
   function renderProgress() {
     if (!progressWrap) return;
-    const show = player.connected && player.durationMs > 0;
+    const show = player.durationMs > 0;
     progressWrap.hidden = !show;
     if (!show) return;
     const cur = currentProgressMs();
@@ -116,10 +118,30 @@
       setControlsEnabled(true);
     } catch (_) {
       player.connected = false;
-      player.isPlaying = false;
-      player.durationMs = 0;
       setControlsEnabled(false);
       syncLikeState("");
+      // No Web API connection — fall back to the librespot event file,
+      // whose server-side position estimate still gives us a progress bar.
+      try {
+        const np = await rawApi("/api/nowplaying");
+        const playingEvents = ["playing", "changed", "started"];
+        if (playingEvents.includes(np.event) && np.duration_ms > 0) {
+          player.isPlaying = true;
+          player.durationMs = np.duration_ms;
+          player.progressMs = np.position_estimate_ms ?? np.position_ms ?? 0;
+          player.lastSync = performance.now();
+        } else if (np.event === "paused" && np.duration_ms > 0) {
+          player.isPlaying = false;
+          player.durationMs = np.duration_ms;
+          player.progressMs = np.position_ms || 0;
+        } else {
+          player.isPlaying = false;
+          player.durationMs = 0;
+        }
+      } catch (_) {
+        player.isPlaying = false;
+        player.durationMs = 0;
+      }
     }
     renderPlayer();
   }

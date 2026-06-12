@@ -20,6 +20,7 @@ import html as html_module
 import urllib.error
 import urllib.parse
 import urllib.request
+from datetime import datetime
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -596,6 +597,19 @@ class RequestHandler(BaseHTTPRequestHandler):
                         data["album"] = meta["album"]
                     if not data.get("cover_url") and meta.get("cover_url"):
                         data["cover_url"] = meta["cover_url"]
+            # Estimate the live position from the event timestamp so the UI
+            # can show progress without a Spotify Web API connection. Both
+            # timestamps are Pi-local, so browser clock skew is irrelevant.
+            if data.get("event") in ("playing", "changed", "started") and data.get("duration_ms"):
+                try:
+                    elapsed_ms = int((datetime.now() - datetime.fromisoformat(str(data.get("ts", "")))).total_seconds() * 1000)
+                    if elapsed_ms >= 0:
+                        data["position_estimate_ms"] = min(
+                            int(data.get("position_ms", 0) or 0) + elapsed_ms,
+                            int(data["duration_ms"]),
+                        )
+                except (ValueError, TypeError):
+                    pass
             # Record into the recently-played history (deduped against the
             # newest entry, so the 2 s polling loop is harmless).
             if data.get("event") in ("playing", "changed", "started") and data.get("name"):
