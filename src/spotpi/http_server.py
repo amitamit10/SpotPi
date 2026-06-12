@@ -325,6 +325,41 @@ class ApiError(Exception):
         super().__init__(message)
 
 
+def _find_repo() -> Path | None:
+    """Locate the cloned SpotPi repository (uses find to dodge /home perms)."""
+    result = subprocess.run(
+        ["find", "/home", "/root", "/opt", "-maxdepth", "4", "-name", ".git", "-type", "d"],
+        text=True, capture_output=True, timeout=15,
+    )
+    for git_dir in result.stdout.splitlines():
+        candidate = Path(git_dir).parent
+        if candidate.name in ("pi-connect-speaker", "spotpi"):
+            return candidate
+    return None
+
+
+def _check_update() -> dict[str, Any]:
+    """Fetch origin/main and report how many commits the install is behind."""
+    repo = _find_repo()
+    if repo is None:
+        return {"available": False, "error": "Git repository not found"}
+    fetch = subprocess.run(
+        ["git", "-C", str(repo), "fetch", "--quiet", "origin", "main"],
+        text=True, capture_output=True, timeout=30,
+    )
+    if fetch.returncode != 0:
+        return {"available": False, "error": (fetch.stderr or "git fetch failed").strip()}
+    count = subprocess.run(
+        ["git", "-C", str(repo), "rev-list", "--count", "HEAD..origin/main"],
+        text=True, capture_output=True, timeout=10,
+    )
+    try:
+        behind = int(count.stdout.strip())
+    except ValueError:
+        return {"available": False, "error": (count.stderr or "rev-list failed").strip()}
+    return {"available": behind > 0, "behind": behind}
+
+
 def _sleep_timer_fire(action: str) -> None:
     """Executed by the sleep timer thread when the countdown ends."""
     config = load_config()
@@ -590,6 +625,8 @@ class RequestHandler(BaseHTTPRequestHandler):
             return sleeptimer.cancel()
         if method == "POST" and path == "/api/update":
             return self._run_update()
+        if method == "GET" and path == "/api/update/check":
+            return _check_update()
         # Spotify Web API proxy (server-side PKCE so crypto.subtle isn't needed on HTTP)
         if method == "GET" and path == "/api/spotify/auth-url":
             client_id = config["web"]["spotify_client_id"]
@@ -648,18 +685,7 @@ class RequestHandler(BaseHTTPRequestHandler):
         raise ApiError(HTTPStatus.NOT_FOUND, "Not found")
 
     def _run_update(self) -> dict[str, Any]:
-        # Find git repo using `find` (avoids permission issues with glob on /home/*)
-        find_result = subprocess.run(
-            ["find", "/home", "/root", "/opt", "-maxdepth", "4", "-name", ".git", "-type", "d"],
-            text=True, capture_output=True, timeout=15,
-        )
-        repo: Path | None = None
-        for git_dir in find_result.stdout.splitlines():
-            candidate = Path(git_dir).parent
-            if candidate.name in ("pi-connect-speaker", "spotpi"):
-                repo = candidate
-                break
-
+        repo = _find_repo()
         if repo is None:
             raise ApiError(HTTPStatus.INTERNAL_SERVER_ERROR,
                            "Git repository not found. Clone the repo to your home directory first.")

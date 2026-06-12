@@ -428,6 +428,24 @@
     }
   });
 
+  /* ────────────────────────────── update availability badge ── */
+  async function checkForUpdate() {
+    try {
+      const pin = localStorage.getItem("spotpiPin");
+      const res = await fetch("/api/update/check", { headers: pin ? { "X-SpotPi-Pin": pin } : {} });
+      if (!res.ok) return;
+      const data = await res.json();
+      const btn = $("#run-update");
+      if (btn && data.available) {
+        btn.textContent = `↑ Update from GitHub — ${data.behind} new commit${data.behind === 1 ? "" : "s"}`;
+        btn.classList.add("update-available");
+      }
+    } catch (_) {
+      /* offline or repo missing — the plain Update button still works */
+    }
+  }
+  setTimeout(checkForUpdate, 4000);
+
   /* ────────────────────────────── keyboard shortcuts ── */
   document.addEventListener("keydown", (e) => {
     if (e.defaultPrevented || e.ctrlKey || e.metaKey || e.altKey) return;

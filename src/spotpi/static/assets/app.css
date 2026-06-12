@@ -998,3 +998,9 @@ button:disabled { cursor: wait; opacity: .55; }
 .like-btn:hover { color: var(--text); background: var(--surface-2); }
 .like-btn.is-liked { color: var(--accent); }
 .like-btn:active { transform: scale(.9); }
+
+/* Update-available state on the GitHub update button */
+#run-update.update-available {
+  border-color: color-mix(in oklab, var(--accent) 55%, var(--line));
+  color: var(--accent); font-weight: 600;
+}
