@@ -98,7 +98,7 @@ Targets: `spotify`, `web`.
 
 `GET /api/nowplaying`
 
-Returns the current track metadata from the librespot event pipeline, enriched with artist/album/cover when available.
+Returns the current track metadata from the librespot event pipeline, enriched with artist/album/cover when available. While playing, `position_estimate_ms` carries a server-side live position estimate so the UI can show progress without a Spotify Web API connection.
 
 `GET /api/history`
 
@@ -143,6 +143,20 @@ Requires connecting a Spotify account from the dashboard (Client ID + PKCE OAuth
 `POST /api/spotify/shuffle` — body `{ "state": true }`
 
 `POST /api/spotify/repeat` — body `{ "state": "off" | "context" | "track" }`
+
+`GET /api/spotify/saved?id=<track_id>` — `{ "saved": true|false }` (Liked Songs)
+
+`POST /api/spotify/save` — body `{ "id": "<track_id>", "saved": true|false }`
+
+## Updates
+
+`GET /api/update/check`
+
+Fetches `origin/main` and returns `{ "available": true|false, "behind": N }`.
+
+`POST /api/update`
+
+Pulls the latest main, hot-reloads the installed package and static assets, and restarts both services.
 
 ## Profiles and Backups
 

@@ -334,7 +334,7 @@ def _find_repo() -> Path | None:
     )
     for git_dir in result.stdout.splitlines():
         candidate = Path(git_dir).parent
-        if candidate.name in ("pi-connect-speaker", "spotpi"):
+        if candidate.name.lower() in ("pi-connect-speaker", "spotpi"):
             return candidate
     return None
 
