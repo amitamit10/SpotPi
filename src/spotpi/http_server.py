@@ -26,7 +26,7 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import parse_qs, urlparse
 
-from . import __version__
+from . import __version__, sleeptimer
 from .config import ConfigError, default_config_path, list_backups, load_config, restore_backup, save_config, schema_payload
 from .diagnostics import doctor, system_summary
 from .history import clear_history, history_file, load_history, record_track
@@ -283,6 +283,20 @@ class ApiError(Exception):
         super().__init__(message)
 
 
+def _sleep_timer_fire(action: str) -> None:
+    """Executed by the sleep timer thread when the countdown ends."""
+    config = load_config()
+    if action == "pause":
+        try:
+            _sp_api("/me/player/pause", "PUT")
+            return
+        except Exception:
+            # Not connected to the Web API (or no active device) — fall back
+            # to stopping the engine so the speaker still goes quiet.
+            pass
+    systemctl_target(config, "stop", "spotify")
+
+
 class RequestHandler(BaseHTTPRequestHandler):
     server_version = f"SpotPi/{__version__}"
 
@@ -504,6 +518,18 @@ class RequestHandler(BaseHTTPRequestHandler):
             service_name = default_config_path().parent.name
             clear_history(history_file(service_name))
             return {"ok": True}
+        if method == "GET" and path == "/api/sleep-timer":
+            return sleeptimer.status()
+        if method == "POST" and path == "/api/sleep-timer":
+            payload = self.read_json()
+            try:
+                minutes = float(payload.get("minutes", 0))
+            except (TypeError, ValueError):
+                raise ApiError(HTTPStatus.BAD_REQUEST, "minutes must be a number") from None
+            action = str(payload.get("action", "pause"))
+            return sleeptimer.start(minutes * 60, action, _sleep_timer_fire)
+        if method == "DELETE" and path == "/api/sleep-timer":
+            return sleeptimer.cancel()
         if method == "POST" and path == "/api/update":
             return self._run_update()
         # Spotify Web API proxy (server-side PKCE so crypto.subtle isn't needed on HTTP)
