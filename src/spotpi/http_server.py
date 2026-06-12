@@ -205,6 +205,27 @@ def _sp_api(path: str, method: str = "GET", body: dict[str, Any] | None = None) 
         raise ApiError(HTTPStatus.BAD_GATEWAY, f"Could not reach Spotify: {exc.reason}") from exc
 
 
+def _sp_player_state() -> dict[str, Any]:
+    """Compact subset of the Spotify player state for the dashboard."""
+    data = _sp_api("/me/player")
+    if not data:
+        return {"active": False}
+    item = data.get("item") or {}
+    device = data.get("device") or {}
+    return {
+        "active": True,
+        "is_playing": bool(data.get("is_playing")),
+        "shuffle": bool(data.get("shuffle_state")),
+        "repeat": data.get("repeat_state", "off"),
+        "progress_ms": data.get("progress_ms") or 0,
+        "duration_ms": item.get("duration_ms") or 0,
+        "track": item.get("name", ""),
+        "track_id": item.get("id") or "",
+        "device": device.get("name", ""),
+        "volume_percent": device.get("volume_percent"),
+    }
+
+
 _OG_RE = re.compile(r'<meta[^>]+property=["\']og:(\w+)["\']\s+content=["\'](.*?)["\']')
 _HTML_ENTITIES = {"&#x27;": "'", "&amp;": "&", "&quot;": '"', "&lt;": "<", "&gt;": ">"}
 _spotify_meta_cache: dict[str, dict[str, str]] = {}
@@ -556,6 +577,22 @@ class RequestHandler(BaseHTTPRequestHandler):
             return _sp_api("/me/player/previous", "POST")
         if method == "GET" and path == "/api/spotify/queue":
             return _sp_api("/me/player/queue")
+        if method == "GET" and path == "/api/spotify/player":
+            return _sp_player_state()
+        if method == "POST" and path == "/api/spotify/play":
+            return _sp_api("/me/player/play", "PUT")
+        if method == "POST" and path == "/api/spotify/pause":
+            return _sp_api("/me/player/pause", "PUT")
+        if method == "POST" and path == "/api/spotify/shuffle":
+            payload = self.read_json()
+            shuffle_state = "true" if payload.get("state") else "false"
+            return _sp_api(f"/me/player/shuffle?state={shuffle_state}", "PUT")
+        if method == "POST" and path == "/api/spotify/repeat":
+            payload = self.read_json()
+            repeat_state = str(payload.get("state", "off"))
+            if repeat_state not in {"off", "context", "track"}:
+                raise ApiError(HTTPStatus.BAD_REQUEST, "state must be off, context or track")
+            return _sp_api(f"/me/player/repeat?state={repeat_state}", "PUT")
         raise ApiError(HTTPStatus.NOT_FOUND, "Not found")
 
     def _run_update(self) -> dict[str, Any]:
