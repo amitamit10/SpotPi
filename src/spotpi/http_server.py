@@ -29,6 +29,7 @@ from urllib.parse import parse_qs, urlparse
 from . import __version__
 from .config import ConfigError, default_config_path, list_backups, load_config, restore_backup, save_config, schema_payload
 from .diagnostics import doctor, system_summary
+from .history import clear_history, history_file, load_history, record_track
 from .librespot import build_librespot_args, redacted_args
 from .profiles import delete_profile, list_profiles, load_profile, save_profile
 from .system import (
@@ -488,7 +489,21 @@ class RequestHandler(BaseHTTPRequestHandler):
                         data["album"] = meta["album"]
                     if not data.get("cover_url") and meta.get("cover_url"):
                         data["cover_url"] = meta["cover_url"]
+            # Record into the recently-played history (deduped against the
+            # newest entry, so the 2 s polling loop is harmless).
+            if data.get("event") in ("playing", "changed", "started") and data.get("name"):
+                try:
+                    record_track(history_file(service_name), data)
+                except OSError:
+                    pass
             return data
+        if method == "GET" and path == "/api/history":
+            service_name = default_config_path().parent.name
+            return {"tracks": load_history(history_file(service_name))}
+        if method == "DELETE" and path == "/api/history":
+            service_name = default_config_path().parent.name
+            clear_history(history_file(service_name))
+            return {"ok": True}
         if method == "POST" and path == "/api/update":
             return self._run_update()
         # Spotify Web API proxy (server-side PKCE so crypto.subtle isn't needed on HTTP)
