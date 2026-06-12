@@ -73,7 +73,11 @@ def _stamp_ui_vol() -> None:
 # ---------------------------------------------------------------------------
 _SP_TOKEN_FILE = Path("/var/lib/pi-connect-speaker/spotify_token.json")
 _SP_STATE_FILE = Path("/var/lib/pi-connect-speaker/spotify_pkce_state.json")
-_SP_SCOPES = "user-read-playback-state user-modify-playback-state user-read-currently-playing"
+_SP_SCOPES = (
+    "user-read-playback-state user-modify-playback-state "
+    "user-read-currently-playing user-library-read user-library-modify"
+)
+_SP_TRACK_ID_RE = re.compile(r"^[A-Za-z0-9]{1,40}$")
 
 
 def _sp_token_file() -> Path:
@@ -626,6 +630,21 @@ class RequestHandler(BaseHTTPRequestHandler):
             if repeat_state not in {"off", "context", "track"}:
                 raise ApiError(HTTPStatus.BAD_REQUEST, "state must be off, context or track")
             return _sp_api(f"/me/player/repeat?state={repeat_state}", "PUT")
+        if method == "GET" and path == "/api/spotify/saved":
+            track_id = query.get("id", [""])[0]
+            if not _SP_TRACK_ID_RE.match(track_id):
+                raise ApiError(HTTPStatus.BAD_REQUEST, "Invalid track id")
+            result = _sp_api(f"/me/tracks/contains?ids={track_id}")
+            saved = bool(result[0]) if isinstance(result, list) and result else False
+            return {"id": track_id, "saved": saved}
+        if method == "POST" and path == "/api/spotify/save":
+            payload = self.read_json()
+            track_id = str(payload.get("id", ""))
+            if not _SP_TRACK_ID_RE.match(track_id):
+                raise ApiError(HTTPStatus.BAD_REQUEST, "Invalid track id")
+            wanted = bool(payload.get("saved", True))
+            _sp_api(f"/me/tracks?ids={track_id}", "PUT" if wanted else "DELETE")
+            return {"id": track_id, "saved": wanted}
         raise ApiError(HTTPStatus.NOT_FOUND, "Not found")
 
     def _run_update(self) -> dict[str, Any]:

@@ -107,9 +107,11 @@
         player.progressMs = data.progress_ms || 0;
         player.durationMs = data.duration_ms || 0;
         player.lastSync = performance.now();
+        syncLikeState(data.track_id || "");
       } else {
         player.isPlaying = false;
         player.durationMs = 0;
+        syncLikeState("");
       }
       setControlsEnabled(true);
     } catch (_) {
@@ -117,9 +119,62 @@
       player.isPlaying = false;
       player.durationMs = 0;
       setControlsEnabled(false);
+      syncLikeState("");
     }
     renderPlayer();
   }
+
+  /* ── liked songs (heart) ── */
+  const likeBtn = $("#like-btn");
+  const likeOutline = $("#like-icon-outline");
+  const likeFilled = $("#like-icon-filled");
+  const like = { trackId: "", saved: false, busy: false };
+
+  function renderLike() {
+    if (!likeBtn) return;
+    likeBtn.hidden = !like.trackId;
+    likeBtn.classList.toggle("is-liked", like.saved);
+    likeBtn.title = like.saved ? "Remove from Liked Songs" : "Save to Liked Songs";
+    if (likeOutline) likeOutline.hidden = like.saved;
+    if (likeFilled) likeFilled.hidden = !like.saved;
+  }
+
+  async function syncLikeState(trackId) {
+    if (trackId === like.trackId) return;
+    like.trackId = trackId;
+    like.saved = false;
+    renderLike();
+    if (!trackId) return;
+    try {
+      const data = await spotifyApi(`/saved?id=${encodeURIComponent(trackId)}`);
+      if (like.trackId === trackId) {
+        like.saved = !!data.saved;
+        renderLike();
+      }
+    } catch (_) {
+      // Older tokens lack the library scope — leave the heart unfilled.
+    }
+  }
+
+  likeBtn?.addEventListener("click", async () => {
+    if (!like.trackId || like.busy) return;
+    like.busy = true;
+    const wanted = !like.saved;
+    like.saved = wanted;
+    renderLike();
+    try {
+      await spotifyApi("/save", { method: "POST", body: JSON.stringify({ id: like.trackId, saved: wanted }) });
+      showNotice(wanted ? "Added to Liked Songs" : "Removed from Liked Songs");
+    } catch (e) {
+      like.saved = !wanted;
+      renderLike();
+      showNotice(/scope/i.test(e.message)
+        ? "Reconnect Spotify to enable Liked Songs (new permission needed)"
+        : e.message, true);
+    } finally {
+      like.busy = false;
+    }
+  });
 
   playPauseBtn?.addEventListener("click", async () => {
     const path = player.isPlaying ? "/pause" : "/play";

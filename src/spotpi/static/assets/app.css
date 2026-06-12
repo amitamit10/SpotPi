@@ -985,3 +985,16 @@ button:disabled { cursor: wait; opacity: .55; }
   .sleep-grid { grid-template-columns: 1fr 1fr; }
   .playback-row { gap: 8px; }
 }
+
+/* Liked Songs heart (top-right of the now-playing card) */
+.now-playing { position: relative; }
+.like-btn {
+  position: absolute; top: 10px; right: 12px; z-index: 2;
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 36px; height: 36px; min-height: 0; padding: 0;
+  border-radius: 50%; background: transparent; border: none;
+  color: var(--text-3); transition: color .15s, transform .1s;
+}
+.like-btn:hover { color: var(--text); background: var(--surface-2); }
+.like-btn.is-liked { color: var(--accent); }
+.like-btn:active { transform: scale(.9); }
