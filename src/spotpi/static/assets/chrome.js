@@ -251,10 +251,7 @@
   /* ── sidebar stats ───────────────────────────────────────────── */
   async function refreshSidebarStats() {
     try {
-      const [, system] = await Promise.all([
-        apiFetch("/api/status"),
-        apiFetch("/api/system"),
-      ]);
+      const system = await apiFetch("/api/system");
       const set = (id, val) => {
         const el = document.querySelector(id);
         if (el) el.textContent = val;
@@ -267,11 +264,27 @@
         tempEl.textContent = tempC !== null && tempC !== undefined ? `${tempC}°C` : "—";
         tempEl.className = "stat-val" + (tempC > 70 ? " danger" : tempC > 58 ? " warn" : tempC > 0 ? " ok" : "");
       }
+      const cpu = system.cpu_percent;
+      const cpuEl = document.querySelector("#stat-cpu");
+      if (cpuEl) {
+        cpuEl.textContent = cpu !== null && cpu !== undefined ? `${cpu}%` : "—";
+        cpuEl.className = "stat-val" + (cpu > 90 ? " danger" : cpu > 70 ? " warn" : cpu >= 0 ? " ok" : "");
+      }
+      const mem = system.memory || {};
+      const ramEl = document.querySelector("#stat-ram");
+      if (ramEl) {
+        if (mem.used_percent !== undefined && mem.MemTotal) {
+          const usedMb = Math.round((mem.MemTotal - (mem.MemAvailable || 0)) / 1024);
+          ramEl.textContent = `${usedMb} MB · ${mem.used_percent}%`;
+          ramEl.className = "stat-val" + (mem.used_percent > 90 ? " danger" : mem.used_percent > 75 ? " warn" : " ok");
+        } else {
+          ramEl.textContent = "—";
+        }
+      }
       const secs = parseFloat((system.uptime || "0").split(" ")[0]);
       const h = Math.floor(secs / 3600);
       const m = Math.floor((secs % 3600) / 60);
       set("#stat-uptime", h > 0 ? `${h}h ${m}m` : `${m}m`);
-      // CPU/RAM not yet in API — leave as "—"
     } catch (_) {
       // Non-critical; app.js handles the main status refresh
     }

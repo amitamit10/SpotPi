@@ -6,6 +6,8 @@ import os
 import platform
 import shutil
 import socket
+import threading
+import time
 from pathlib import Path
 from typing import Any
 
@@ -23,6 +25,8 @@ def system_summary(config: dict[str, Any]) -> dict[str, Any]:
         "python": platform.python_version(),
         "uptime": read_first_line("/proc/uptime"),
         "cpu_temperature_c": cpu_temperature(),
+        "cpu_percent": cpu_percent(),
+        "load_average": load_average(),
         "memory": memory_info(),
         "disk": disk_info([
             "/",
@@ -51,6 +55,8 @@ def doctor(config: dict[str, Any]) -> dict[str, Any]:
         check_audio(config),
         check_connectivity(config),
         check_librespot_command(config),
+        check_cpu_temperature(),
+        check_disk_space(config),
     ]
     summary = {
         "ok": sum(1 for check in checks if check["status"] == "ok"),
@@ -82,8 +88,61 @@ def cpu_temperature() -> float | None:
         return None
 
 
-def memory_info() -> dict[str, int]:
-    values: dict[str, int] = {}
+def parse_cpu_times(stat_line: str) -> tuple[float, float] | None:
+    """Parse a /proc/stat "cpu" line into (busy, total) jiffies."""
+    parts = stat_line.split()
+    if not parts or parts[0] != "cpu" or len(parts) < 5:
+        return None
+    try:
+        fields = [float(part) for part in parts[1:]]
+    except ValueError:
+        return None
+    idle = fields[3] + (fields[4] if len(fields) > 4 else 0.0)
+    total = sum(fields)
+    return total - idle, total
+
+
+def cpu_percent_from_samples(previous: tuple[float, float], current: tuple[float, float]) -> float | None:
+    busy = current[0] - previous[0]
+    total = current[1] - previous[1]
+    if total <= 0:
+        return None
+    return round(max(0.0, min(100.0, 100.0 * busy / total)), 1)
+
+
+_cpu_sample_lock = threading.Lock()
+_last_cpu_sample: tuple[float, float] | None = None
+
+
+def cpu_percent() -> float | None:
+    """CPU usage since the previous call (short second sample on first call)."""
+    global _last_cpu_sample
+    current = parse_cpu_times(read_first_line("/proc/stat"))
+    if current is None:
+        return None
+    with _cpu_sample_lock:
+        previous = _last_cpu_sample
+        _last_cpu_sample = current
+    if previous is None or previous == current:
+        time.sleep(0.1)
+        second = parse_cpu_times(read_first_line("/proc/stat"))
+        if second is None:
+            return None
+        with _cpu_sample_lock:
+            _last_cpu_sample = second
+        previous, current = current, second
+    return cpu_percent_from_samples(previous, current)
+
+
+def load_average() -> list[float]:
+    try:
+        return [round(value, 2) for value in os.getloadavg()]
+    except OSError:
+        return []
+
+
+def memory_info() -> dict[str, Any]:
+    values: dict[str, Any] = {}
     try:
         for line in Path("/proc/meminfo").read_text(encoding="utf-8").splitlines():
             key, raw = line.split(":", 1)
@@ -91,6 +150,10 @@ def memory_info() -> dict[str, int]:
                 values[key] = int(raw.strip().split()[0])
     except (OSError, ValueError):
         return {}
+    total = values.get("MemTotal", 0)
+    available = values.get("MemAvailable", 0)
+    if total > 0:
+        values["used_percent"] = round((total - available) / total * 100, 1)
     return values
 
 
@@ -191,3 +254,35 @@ def check_librespot_command(config: dict[str, Any]) -> dict[str, str]:
     if args:
         return check("Librespot command", "ok", " ".join(args))
     return check("Librespot command", "error", "No command generated", "Check service settings")
+
+
+CPU_TEMP_WARN_C = 70.0
+CPU_TEMP_ERROR_C = 80.0
+
+
+def check_cpu_temperature() -> dict[str, str]:
+    temperature = cpu_temperature()
+    if temperature is None:
+        return check("CPU temperature", "warning", "Temperature sensor not readable", "Expected on non-Pi hardware")
+    if temperature >= CPU_TEMP_ERROR_C:
+        return check("CPU temperature", "error", f"{temperature} °C — throttling likely", "Improve cooling or airflow")
+    if temperature >= CPU_TEMP_WARN_C:
+        return check("CPU temperature", "warning", f"{temperature} °C is high", "Improve cooling or airflow")
+    return check("CPU temperature", "ok", f"{temperature} °C")
+
+
+DISK_WARN_FREE_PERCENT = 10.0
+DISK_ERROR_FREE_PERCENT = 5.0
+
+
+def check_disk_space(config: dict[str, Any]) -> dict[str, str]:
+    disks = disk_info(["/", config["quality"]["cache_path"]])
+    if not disks:
+        return check("Disk space", "warning", "Could not read disk usage", "")
+    worst = min(disks, key=lambda item: item["free_percent"])
+    detail = f"{worst['path']}: {worst['free_percent']}% free"
+    if worst["free_percent"] <= DISK_ERROR_FREE_PERCENT:
+        return check("Disk space", "error", detail, "Free up space or shrink the audio cache limit")
+    if worst["free_percent"] <= DISK_WARN_FREE_PERCENT:
+        return check("Disk space", "warning", detail, "Free up space or shrink the audio cache limit")
+    return check("Disk space", "ok", detail)
