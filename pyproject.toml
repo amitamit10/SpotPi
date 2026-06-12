@@ -37,4 +37,10 @@ package-dir = { "" = "src" }
 where = ["src"]
 
 [tool.setuptools.package-data]
-spotpi = ["static/*.html", "static/assets/*.css", "static/assets/*.js"]
+spotpi = [
+  "static/*.html",
+  "static/*.svg",
+  "static/*.webmanifest",
+  "static/assets/*.css",
+  "static/assets/*.js",
+]

@@ -465,7 +465,8 @@ async function setMixerVolume() {
 
 async function refreshLogs() {
   const target = els.logTarget.value || "spotify";
-  const payload = await api(`/api/logs?target=${encodeURIComponent(target)}&lines=${state.config.diagnostics.log_lines}`);
+  const lines = document.querySelector("#log-lines")?.value || state.config.diagnostics.log_lines;
+  const payload = await api(`/api/logs?target=${encodeURIComponent(target)}&lines=${encodeURIComponent(lines)}`);
   els.logs.textContent = payload.stdout || payload.stderr || "No logs returned";
 }
 

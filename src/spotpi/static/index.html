@@ -3,7 +3,10 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#101010">
   <title>SpotPi</title>
+  <link rel="icon" href="/icon.svg" type="image/svg+xml">
+  <link rel="manifest" href="/manifest.webmanifest">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -99,17 +102,47 @@
           </div>
         </div>
 
+        <!-- Track progress (Spotify Web API; hidden unless connected) -->
+        <div class="progress-wrap" id="progress-wrap" hidden>
+          <span class="progress-time" id="progress-current">0:00</span>
+          <div class="progress-track"><div class="progress-fill" id="progress-fill"></div></div>
+          <span class="progress-time" id="progress-total">0:00</span>
+        </div>
+
         <!-- Playback controls -->
         <div class="playback-row">
+          <button class="playback-btn playback-btn--icon" id="shuffle-btn" type="button" title="Shuffle" disabled>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" width="16" height="16"><path d="M16 3h5v5"/><path d="M4 20L21 3"/><path d="M21 16v5h-5"/><path d="M15 15l6 6"/><path d="M4 4l5 5"/></svg>
+          </button>
           <button class="playback-btn" id="skip-prev" type="button" title="Previous" disabled>
             <svg viewBox="0 0 24 24" fill="currentColor" width="20" height="20"><path d="M6 6h2v12H6zm3.5 6 8.5 6V6z"/></svg>
           </button>
-          <button class="playback-btn playback-btn--queue" id="show-queue" type="button" title="Queue">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="15" y2="12"/><line x1="3" y1="18" x2="18" y2="18"/></svg>
-            Queue
+          <button class="playback-btn playback-btn--primary" id="play-pause" type="button" title="Play / Pause" disabled>
+            <svg id="icon-play" viewBox="0 0 24 24" fill="currentColor" width="22" height="22"><path d="M8 5v14l11-7z"/></svg>
+            <svg id="icon-pause" viewBox="0 0 24 24" fill="currentColor" width="22" height="22" hidden><path d="M6 5h4v14H6zM14 5h4v14h-4z"/></svg>
           </button>
           <button class="playback-btn" id="skip-next" type="button" title="Next" disabled>
             <svg viewBox="0 0 24 24" fill="currentColor" width="20" height="20"><path d="M6 18l8.5-6L6 6v12zm2.5-6 5.5 3.9V8.1L8.5 12zM16 6h2v12h-2z"/></svg>
+          </button>
+          <button class="playback-btn playback-btn--icon" id="repeat-btn" type="button" title="Repeat" disabled>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" width="16" height="16"><path d="M17 1l4 4-4 4"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><path d="M7 23l-4-4 4-4"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg>
+            <span class="repeat-one-badge" id="repeat-badge" hidden>1</span>
+          </button>
+        </div>
+
+        <!-- Tool row: queue / history / sleep timer -->
+        <div class="tool-row">
+          <button class="tool-btn" id="show-queue" type="button" title="Queue">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="15" y2="12"/><line x1="3" y1="18" x2="18" y2="18"/></svg>
+            Queue
+          </button>
+          <button class="tool-btn" id="show-history" type="button" title="Recently played">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" width="15" height="15"><path d="M3 3v5h5"/><path d="M3.05 13A9 9 0 1 0 6 5.3L3 8"/><path d="M12 7v5l4 2"/></svg>
+            History
+          </button>
+          <button class="tool-btn" id="sleep-btn" type="button" title="Sleep timer">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+            <span id="sleep-btn-label">Sleep</span>
           </button>
         </div>
         <div id="spotify-connect-hint" class="spotify-connect-hint">
@@ -281,8 +314,13 @@
         <section id="backups-panel" class="panel">
           <div class="panel-head">
             <h2>Backups</h2>
-            <button id="refresh-backups" type="button">Refresh</button>
+            <div class="button-row">
+              <button id="export-config" type="button">Export</button>
+              <button id="import-config" type="button">Import</button>
+              <button id="refresh-backups" type="button">Refresh</button>
+            </div>
           </div>
+          <input id="import-config-file" type="file" accept=".toml,text/plain" hidden>
           <div id="backup-list" class="profile-list"></div>
         </section>
 
@@ -294,7 +332,14 @@
                 <option value="spotify">Spotify</option>
                 <option value="web">Web UI</option>
               </select>
+              <select id="log-lines" title="Lines to fetch">
+                <option value="100">100 lines</option>
+                <option value="200" selected>200 lines</option>
+                <option value="500">500 lines</option>
+                <option value="1000">1000 lines</option>
+              </select>
               <button id="refresh-logs" type="button">Refresh</button>
+              <button id="download-logs" type="button">Download</button>
             </div>
           </div>
           <pre id="logs" class="logs"></pre>
@@ -325,6 +370,58 @@
         <button id="queue-sheet-close" type="button" class="sheet-close" aria-label="Close">✕</button>
       </div>
       <div id="queue-sheet-list" class="sheet-list queue-list"></div>
+    </div>
+  </div>
+
+  <!-- ============================================================
+    HISTORY SHEET — opened by features.js
+  ============================================================ -->
+  <div id="history-sheet" class="sheet-overlay" hidden>
+    <div class="sheet sheet--tall" role="dialog" aria-modal="true" aria-labelledby="history-sheet-title">
+      <div class="sheet-head">
+        <span class="sheet-title" id="history-sheet-title">Recently played</span>
+        <span class="sheet-head-actions">
+          <button id="history-clear" type="button" class="sheet-action">Clear</button>
+          <button id="history-sheet-close" type="button" class="sheet-close" aria-label="Close">✕</button>
+        </span>
+      </div>
+      <div id="history-sheet-list" class="sheet-list queue-list"></div>
+    </div>
+  </div>
+
+  <!-- ============================================================
+    SLEEP TIMER SHEET — opened by features.js
+  ============================================================ -->
+  <div id="sleep-sheet" class="sheet-overlay" hidden>
+    <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="sleep-sheet-title">
+      <div class="sheet-head">
+        <span class="sheet-title" id="sleep-sheet-title">Sleep timer</span>
+        <button id="sleep-sheet-close" type="button" class="sheet-close" aria-label="Close">✕</button>
+      </div>
+      <div class="sleep-body">
+        <div id="sleep-active" class="sleep-active" hidden>
+          <div class="sleep-remaining" id="sleep-remaining">—</div>
+          <div class="sleep-remaining-sub" id="sleep-active-desc">until playback pauses</div>
+          <button id="sleep-cancel" type="button" class="danger-ghost">Cancel timer</button>
+        </div>
+        <div id="sleep-presets">
+          <div class="sleep-grid">
+            <button class="sleep-preset" data-minutes="15" type="button">15 min</button>
+            <button class="sleep-preset" data-minutes="30" type="button">30 min</button>
+            <button class="sleep-preset" data-minutes="45" type="button">45 min</button>
+            <button class="sleep-preset" data-minutes="60" type="button">1 hour</button>
+            <button class="sleep-preset" data-minutes="90" type="button">1.5 hours</button>
+            <button class="sleep-preset" data-minutes="120" type="button">2 hours</button>
+          </div>
+          <label class="sleep-action-row">
+            When the timer ends
+            <select id="sleep-action">
+              <option value="pause">Pause playback (needs Spotify connected)</option>
+              <option value="stop">Stop Spotify Connect service</option>
+            </select>
+          </label>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -371,5 +468,6 @@
 
   <script src="/assets/app.js"></script>
   <script src="/assets/chrome.js"></script>
+  <script src="/assets/features.js"></script>
 </body>
 </html>
