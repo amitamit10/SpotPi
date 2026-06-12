@@ -357,6 +357,35 @@
           <pre id="command-preview" class="logs"></pre>
         </section>
 
+        <section id="services-panel" class="panel">
+          <div class="panel-head">
+            <h2>Services</h2>
+            <button id="refresh-services" type="button">Refresh</button>
+          </div>
+          <div class="device-list">
+            <div class="device-row">
+              <div>
+                <div class="device-title">Spotify Connect engine</div>
+                <div class="device-meta">librespot · <span id="svc-spotify-state">—</span></div>
+              </div>
+              <div class="button-row">
+                <button type="button" data-svc-target="spotify" data-svc-action="start">Start</button>
+                <button type="button" data-svc-target="spotify" data-svc-action="stop">Stop</button>
+                <button type="button" data-svc-target="spotify" data-svc-action="restart">Restart</button>
+              </div>
+            </div>
+            <div class="device-row">
+              <div>
+                <div class="device-title">Web UI</div>
+                <div class="device-meta">this dashboard · <span id="svc-web-state">—</span></div>
+              </div>
+              <div class="button-row">
+                <button type="button" data-svc-target="web" data-svc-action="restart">Restart</button>
+              </div>
+            </div>
+          </div>
+        </section>
+
         <section class="panel panel--actions">
           <button id="run-update" type="button">↑ Update from GitHub</button>
         </section>

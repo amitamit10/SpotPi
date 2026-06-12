@@ -450,6 +450,45 @@
     }
   });
 
+  /* ────────────────────────────── services panel ── */
+  async function refreshServicesPanel() {
+    try {
+      const status = await rawApi("/api/status");
+      const set = (sel, svc) => {
+        const el = $(sel);
+        if (!el) return;
+        el.textContent = svc.active || "unknown";
+        el.className = svc.active === "active" ? "svc-ok" : "svc-warn";
+      };
+      set("#svc-spotify-state", status.spotify || {});
+      set("#svc-web-state", status.web || {});
+    } catch (_) {
+      /* status pane is decorative; failures are visible elsewhere */
+    }
+  }
+
+  for (const btn of document.querySelectorAll("[data-svc-action]")) {
+    btn.addEventListener("click", async () => {
+      const target = btn.dataset.svcTarget;
+      const action = btn.dataset.svcAction;
+      if (target === "web" &&
+          !window.confirm("Restart the web UI service? The dashboard will briefly disconnect.")) return;
+      btn.disabled = true;
+      try {
+        await api(`/api/service/${target}/${action}`, { method: "POST", body: "{}" });
+        showNotice(`${action} requested for ${target}`);
+        if (target === "web") setTimeout(() => window.location.reload(), 3000);
+        setTimeout(refreshServicesPanel, 1000);
+      } catch (e) {
+        showNotice(e.message, true);
+      } finally {
+        btn.disabled = false;
+      }
+    });
+  }
+  $("#refresh-services")?.addEventListener("click", refreshServicesPanel);
+  refreshServicesPanel();
+
   /* ────────────────────────────── update availability badge ── */
   async function checkForUpdate() {
     try {

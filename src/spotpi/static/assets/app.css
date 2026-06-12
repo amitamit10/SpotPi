@@ -1004,3 +1004,7 @@ button:disabled { cursor: wait; opacity: .55; }
   border-color: color-mix(in oklab, var(--accent) 55%, var(--line));
   color: var(--accent); font-weight: 600;
 }
+
+/* Services panel state colours */
+.svc-ok   { color: var(--accent); font-weight: 600; }
+.svc-warn { color: var(--warn);   font-weight: 600; }
