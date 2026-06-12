@@ -86,6 +86,15 @@ def update_config(patch: dict[str, Any], path: Path | None = None) -> dict[str, 
     return save_config(deep_merge(current, patch), path)
 
 
+def import_config_text(text: str, path: Path | None = None) -> dict[str, Any]:
+    """Validate and save configuration supplied as TOML text (UI import)."""
+    try:
+        loaded = tomllib.loads(text)
+    except tomllib.TOMLDecodeError as exc:
+        raise ConfigError(f"Invalid TOML: {exc}") from exc
+    return save_config(deep_merge(deep_copy_defaults(), loaded), path)
+
+
 def validate_config(config: dict[str, Any]) -> dict[str, Any]:
     if not isinstance(config, dict):
         raise ConfigError("Configuration must be an object")

@@ -7,6 +7,7 @@ import json
 import shlex
 import sys
 
+from . import __version__
 from .config import default_config_path, list_backups, load_config, save_config
 from .diagnostics import doctor
 from .librespot import build_librespot_args, redacted_args
@@ -14,14 +15,19 @@ from .librespot import build_librespot_args, redacted_args
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="spotpi")
+    parser.add_argument("--version", action="version", version=f"spotpi {__version__}")
     subparsers = parser.add_subparsers(dest="command", required=True)
     subparsers.add_parser("doctor", help="Run health checks")
     subparsers.add_parser("config-path", help="Print active config path")
     subparsers.add_parser("init-config", help="Create config if missing")
     subparsers.add_parser("backups", help="List config backups")
     subparsers.add_parser("preview", help="Print the generated librespot command")
+    subparsers.add_parser("version", help="Print the SpotPi version")
     args = parser.parse_args(argv)
 
+    if args.command == "version":
+        print(__version__)
+        return 0
     if args.command == "config-path":
         print(default_config_path())
         return 0

@@ -27,7 +27,17 @@ from typing import Any
 from urllib.parse import parse_qs, urlparse
 
 from . import __version__, sleeptimer
-from .config import ConfigError, default_config_path, list_backups, load_config, restore_backup, save_config, schema_payload
+from .config import (
+    ConfigError,
+    default_config_path,
+    dumps_toml,
+    import_config_text,
+    list_backups,
+    load_config,
+    restore_backup,
+    save_config,
+    schema_payload,
+)
 from .diagnostics import doctor, system_summary
 from .history import clear_history, history_file, load_history, record_track
 from .librespot import build_librespot_args, redacted_args
@@ -43,6 +53,10 @@ from .system import (
 )
 
 STATIC_DIR = Path(__file__).with_name("static")
+_SERVER_STARTED = time.monotonic()
+
+mimetypes.add_type("application/manifest+json", ".webmanifest")
+mimetypes.add_type("image/svg+xml", ".svg")
 
 _JOURNAL_TRACK_RE = re.compile(r"Loading <(.+?)> with Spotify URI <(spotify:track:(\w+))>")
 _JOURNAL_VOL_RE = re.compile(r"volume is now (\d+)")
@@ -345,6 +359,9 @@ class RequestHandler(BaseHTTPRequestHandler):
                 return
             if parsed.path.startswith("/api/"):
                 self.ensure_authorized(parsed.path)
+                if method == "GET" and parsed.path == "/api/settings/export":
+                    self._send_config_export()
+                    return
                 payload = self.handle_api(method, parsed.path, parse_qs(parsed.query))
                 self.send_json(payload)
                 return
@@ -399,7 +416,7 @@ class RequestHandler(BaseHTTPRequestHandler):
         self.wfile.write(body)
 
     def ensure_authorized(self, path: str) -> None:
-        if path == "/api/schema":
+        if path in {"/api/schema", "/api/health"}:
             return
         config = load_config()
         web = config["web"]
@@ -419,11 +436,24 @@ class RequestHandler(BaseHTTPRequestHandler):
         config = load_config()
         if method == "GET" and path == "/api/schema":
             return schema_payload()
+        if method == "GET" and path == "/api/health":
+            return {
+                "ok": True,
+                "version": __version__,
+                "uptime_seconds": round(time.monotonic() - _SERVER_STARTED, 1),
+            }
         if method == "GET" and path == "/api/settings":
             return {"config": config, "path": str(default_config_path())}
         if method == "PUT" and path == "/api/settings":
             payload = self.read_json()
             saved = save_config(payload.get("config", payload))
+            return {"config": saved, "path": str(default_config_path())}
+        if method == "POST" and path == "/api/settings/import":
+            payload = self.read_json()
+            toml_text = str(payload.get("toml", ""))
+            if not toml_text.strip():
+                raise ApiError(HTTPStatus.BAD_REQUEST, "TOML content required")
+            saved = import_config_text(toml_text)
             return {"config": saved, "path": str(default_config_path())}
         if method == "GET" and path == "/api/status":
             return status_payload(config)
@@ -692,6 +722,17 @@ class RequestHandler(BaseHTTPRequestHandler):
         if not isinstance(data, dict):
             raise ApiError(HTTPStatus.BAD_REQUEST, "JSON body must be an object")
         return data
+
+    def _send_config_export(self) -> None:
+        body = dumps_toml(load_config()).encode("utf-8")
+        filename = f"spotpi-config-{time.strftime('%Y%m%d-%H%M%S')}.toml"
+        self.send_response(HTTPStatus.OK.value)
+        self.send_header("Content-Type", "application/toml; charset=utf-8")
+        self.send_header("Content-Disposition", f'attachment; filename="{filename}"')
+        self.send_header("Content-Length", str(len(body)))
+        self.send_header("Cache-Control", "no-store")
+        self.end_headers()
+        self.wfile.write(body)
 
     def send_json(self, payload: dict[str, Any], status: HTTPStatus = HTTPStatus.OK) -> None:
         body = json.dumps(payload, indent=2, sort_keys=True).encode("utf-8")

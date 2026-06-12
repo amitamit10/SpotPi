@@ -4,7 +4,17 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from spotpi.config import ConfigError, deep_copy_defaults, list_backups, load_config, restore_backup, save_config, update_config
+from spotpi.config import (
+    ConfigError,
+    deep_copy_defaults,
+    dumps_toml,
+    import_config_text,
+    list_backups,
+    load_config,
+    restore_backup,
+    save_config,
+    update_config,
+)
 
 
 class ConfigTests(unittest.TestCase):
@@ -60,6 +70,21 @@ class ConfigTests(unittest.TestCase):
         config["device"]["surprise"] = True
         with self.assertRaises(ConfigError):
             save_config(config, Path(tempfile.gettempdir()) / "unused.toml")
+
+    def test_import_config_text_round_trip(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "config.toml"
+            config = deep_copy_defaults()
+            config["backup"]["directory"] = str(Path(tmp) / "backups")
+            config["device"]["name"] = "Exported"
+            imported = import_config_text(dumps_toml(config), path)
+            loaded = load_config(path)
+        self.assertEqual(imported["device"]["name"], "Exported")
+        self.assertEqual(loaded["device"]["name"], "Exported")
+
+    def test_import_config_text_rejects_bad_toml(self) -> None:
+        with self.assertRaises(ConfigError):
+            import_config_text("not [valid toml", Path(tempfile.gettempdir()) / "unused.toml")
 
     def test_control_characters_survive_round_trip(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
