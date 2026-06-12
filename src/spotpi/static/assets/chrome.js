@@ -327,16 +327,6 @@
     }
   }
 
-  async function startAuth() {
-    const redirectUri = window.location.origin + window.location.pathname;
-    try {
-      const d = await spApi(`/auth-url?redirect_uri=${encodeURIComponent(redirectUri)}`);
-      window.location.href = d.url;
-    } catch (e) {
-      spToast(e.message, true);
-    }
-  }
-
   /* queue */
   const queueSheet = document.querySelector("#queue-sheet");
   const queueList  = document.querySelector("#queue-sheet-list");
@@ -388,7 +378,9 @@
     catch (e) { spToast(e.message, true); }
   });
 
-  document.querySelector("#spotify-connect-btn")?.addEventListener("click", e => { e.preventDefault(); startAuth(); });
+  // Note: the Connect button click is handled by app.js (startSpotifyConnect);
+  // binding it here too would fire two auth-url requests whose PKCE states
+  // overwrite each other.
 
   /* handle OAuth callback: Spotify redirects back with ?code=... */
   async function init() {

@@ -264,4 +264,11 @@ def quote_toml_string(value: str) -> str:
         .replace("\f", "\\f")
         .replace("\r", "\\r")
     )
+    # TOML basic strings must not contain raw control characters; escape any
+    # remaining ones so the file can always be parsed back.
+    escaped = re.sub(
+        r"[\x00-\x08\x0b\x0e-\x1f\x7f]",
+        lambda match: f"\\u{ord(match.group(0)):04X}",
+        escaped,
+    )
     return f'"{escaped}"'

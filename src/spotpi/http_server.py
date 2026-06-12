@@ -5,6 +5,7 @@ from __future__ import annotations
 import base64
 import glob
 import hashlib
+import hmac
 import json
 import mimetypes
 import os
@@ -13,6 +14,7 @@ import secrets
 import shlex
 import shutil
 import subprocess
+import threading
 import time
 import html as html_module
 import urllib.error
@@ -166,22 +168,40 @@ def _sp_access_token() -> str:
     return refreshed["access_token"]
 
 
-def _sp_api(path: str, method: str = "GET") -> dict[str, Any]:
+def _sp_api(path: str, method: str = "GET", body: dict[str, Any] | None = None) -> dict[str, Any]:
     """Call the Spotify Web API and return parsed JSON (or {} for 204)."""
     access = _sp_access_token()
+    headers = {"Authorization": f"Bearer {access}"}
+    data = None
+    if body is not None:
+        data = json.dumps(body).encode("utf-8")
+        headers["Content-Type"] = "application/json"
     req = urllib.request.Request(
         f"https://api.spotify.com/v1{path}",
         method=method,
-        headers={"Authorization": f"Bearer {access}"},
+        headers=headers,
+        data=data,
     )
     try:
         with urllib.request.urlopen(req, timeout=10) as resp:
-            body = resp.read()
-            return json.loads(body) if body else {}
+            raw = resp.read()
+            return json.loads(raw) if raw else {}
     except urllib.error.HTTPError as exc:
         if exc.code == 204:
             return {}
-        raise ApiError(HTTPStatus.BAD_GATEWAY, f"Spotify API error {exc.code}")
+        # Surface Spotify's own error message (e.g. "No active device found")
+        detail = ""
+        try:
+            payload = json.loads(exc.read().decode("utf-8", errors="replace"))
+            detail = payload.get("error", {}).get("message", "")
+        except Exception:
+            pass
+        if exc.code == 404 and not detail:
+            detail = "No active playback device"
+        message = f"Spotify: {detail}" if detail else f"Spotify API error {exc.code}"
+        raise ApiError(HTTPStatus.BAD_GATEWAY, message) from exc
+    except urllib.error.URLError as exc:
+        raise ApiError(HTTPStatus.BAD_GATEWAY, f"Could not reach Spotify: {exc.reason}") from exc
 
 
 _OG_RE = re.compile(r'<meta[^>]+property=["\']og:(\w+)["\']\s+content=["\'](.*?)["\']')
@@ -349,8 +369,14 @@ class RequestHandler(BaseHTTPRequestHandler):
         web = config["web"]
         if web["auth_mode"] == "none":
             return
-        if web["auth_mode"] == "pin" and self.headers.get("X-SpotPi-Pin") == web["auth_pin"]:
-            return
+        if web["auth_mode"] == "pin":
+            # An empty PIN cannot protect anything; treat it as auth disabled
+            # instead of locking the user out of their own device.
+            if not web["auth_pin"]:
+                return
+            supplied = self.headers.get("X-SpotPi-Pin", "")
+            if hmac.compare_digest(supplied, web["auth_pin"]):
+                return
         raise ApiError(HTTPStatus.UNAUTHORIZED, "Unauthorized")
 
     def handle_api(self, method: str, path: str, query: dict[str, list[str]]) -> dict[str, Any]:

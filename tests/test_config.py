@@ -61,6 +61,16 @@ class ConfigTests(unittest.TestCase):
         with self.assertRaises(ConfigError):
             save_config(config, Path(tempfile.gettempdir()) / "unused.toml")
 
+    def test_control_characters_survive_round_trip(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "config.toml"
+            config = deep_copy_defaults()
+            config["backup"]["directory"] = str(Path(tmp) / "backups")
+            config["device"]["timezone"] = "weird\x1bvalue\x00here"
+            save_config(config, path)
+            loaded = load_config(path)
+        self.assertEqual(loaded["device"]["timezone"], "weird\x1bvalue\x00here")
+
 
 if __name__ == "__main__":
     unittest.main()
