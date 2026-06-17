@@ -191,6 +191,16 @@ Open **http://\<pi-ip\>:8080** — the device appears in Spotify as **SpotPi**.
 
 > For alternative install modes (existing binary, apt, Cargo) see [Install Options](docs/OPERATIONS.md#install-options).
 
+**Enable skip/queue controls (optional)**
+
+To unlock skip, previous, queue and playback controls via the Spotify Web API:
+
+1. Create a free app at [developer.spotify.com/dashboard](https://developer.spotify.com/dashboard) and tick **Web API**
+2. Under **Redirect URIs** add exactly: `http://127.0.0.1:8080/`
+   > Use the loopback IP — Spotify only allows HTTP for `127.0.0.1`/`localhost`, not LAN IPs like `192.168.x.x`
+3. Copy the **Client ID** into SpotPi → Advanced → Web UI → *Spotify Client ID*
+4. Click **Connect Spotify** on the dashboard and follow the on-screen steps (you'll paste a callback URL back into SpotPi)
+
 **Verify installation**
 
 ```bash
