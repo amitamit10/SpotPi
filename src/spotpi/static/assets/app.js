@@ -786,7 +786,8 @@ function wizardStep2(el) {
 }
 
 function wizardStep3(el) {
-  const redirectUri = window.location.origin + "/";
+  const port = state.config?.web?.port || 8080;
+  const redirectUri = `http://127.0.0.1:${port}/`;
   el.innerHTML = `
     <div class="wizard-step-icon">&#127925;</div>
     <h2 class="wizard-step-title">Skip &amp; Queue Controls</h2>
@@ -802,6 +803,7 @@ function wizardStep3(el) {
         <span>Fill in any name. Under <strong>Redirect URIs</strong> add exactly:<br>
           <code class="wizard-uri" id="wiz-redirect-uri">${escapeHtml(redirectUri)}</code>
           <button type="button" class="wizard-copy-btn" id="wiz-copy-uri">Copy</button>
+          <br><small style="color:var(--text-3,#888)">Note: use 127.0.0.1, not the Pi&rsquo;s IP — Spotify only allows HTTP for loopback addresses</small>
         </span>
       </div>
       <div class="wizard-spotify-step">
@@ -1002,7 +1004,11 @@ async function startSpotifyConnect() {
     showNotice("Open the setup wizard and add your Spotify Client ID first", true);
     return;
   }
-  const redirectUri = window.location.origin + "/";
+  // Spotify only allows HTTP for loopback addresses (127.0.0.1), not LAN IPs.
+  // We open the auth URL in a new tab; after login Spotify redirects to 127.0.0.1
+  // which fails (nothing there), and the user pastes the callback URL back here.
+  const port = state.config?.web?.port || 8080;
+  const redirectUri = `http://127.0.0.1:${port}/`;
   let authUrl;
   try {
     const payload = await api(`/api/spotify/auth-url?${new URLSearchParams({ redirect_uri: redirectUri })}`);
@@ -1011,9 +1017,53 @@ async function startSpotifyConnect() {
     showNotice(err.message, true);
     return;
   }
+  window.open(authUrl, "_blank", "noopener");
+  showSpotifyCallbackModal();
+}
 
-  // Open Spotify auth in current tab — Spotify will redirect back to the Pi at redirectUri
-  window.location.href = authUrl;
+function showSpotifyCallbackModal() {
+  let modal = document.querySelector("#spotify-callback-modal");
+  if (modal) { modal.querySelector("#spotify-callback-url").value = ""; return; }
+  modal = document.createElement("div");
+  modal.id = "spotify-callback-modal";
+  modal.style.cssText = "position:fixed;inset:0;background:rgba(0,0,0,.75);display:flex;align-items:center;justify-content:center;z-index:9999";
+  modal.innerHTML = `
+    <div style="background:var(--surface,#1e1e1e);border-radius:12px;padding:28px 24px;max-width:500px;width:90%;color:var(--text-1,#fff)">
+      <h3 style="margin:0 0 12px;font-size:1.05rem">Complete Spotify Login</h3>
+      <ol style="margin:0 0 14px;padding-left:20px;color:var(--text-2,#aaa);font-size:.9rem;line-height:1.7">
+        <li>Log in to Spotify in the tab that just opened</li>
+        <li>After you approve, your browser will try to open <code>http://127.0.0.1:${state.config?.web?.port || 8080}/</code> and show a connection error — that's expected</li>
+        <li>Copy the full URL from your address bar and paste it below</li>
+      </ol>
+      <input id="spotify-callback-url" type="text" placeholder="http://127.0.0.1:${state.config?.web?.port || 8080}/?code=…"
+        style="width:100%;box-sizing:border-box;padding:8px 10px;border-radius:6px;border:1px solid #444;background:#111;color:#fff;font-size:.85rem;margin-bottom:14px">
+      <div style="display:flex;gap:10px;justify-content:flex-end">
+        <button type="button" id="spotify-callback-cancel" style="padding:8px 16px;border-radius:6px;border:1px solid #444;background:transparent;color:#aaa;cursor:pointer">Cancel</button>
+        <button type="button" id="spotify-callback-complete" style="padding:8px 16px;border-radius:6px;border:none;background:#1db954;color:#000;font-weight:600;cursor:pointer">Complete</button>
+      </div>
+    </div>
+  `;
+  document.body.append(modal);
+  modal.querySelector("#spotify-callback-cancel").addEventListener("click", () => modal.remove());
+  modal.querySelector("#spotify-callback-complete").addEventListener("click", completeSpotifyCallback);
+}
+
+async function completeSpotifyCallback() {
+  const input = document.querySelector("#spotify-callback-url");
+  const raw = input?.value?.trim();
+  if (!raw) { showNotice("Paste the callback URL first", true); return; }
+  let code;
+  try { code = new URL(raw).searchParams.get("code"); }
+  catch (_) { showNotice("Invalid URL — copy the full URL from the address bar", true); return; }
+  if (!code) { showNotice("No authorization code in URL — make sure you copied the full address bar URL", true); return; }
+  try {
+    await api("/api/spotify/callback", { method: "POST", body: JSON.stringify({ code }) });
+    document.querySelector("#spotify-callback-modal")?.remove();
+    await checkSpotifyConnected();
+    showNotice("Spotify connected!");
+  } catch (err) {
+    showNotice(err.message, true);
+  }
 }
 
 const connectBtn = document.querySelector("#spotify-connect-btn");
