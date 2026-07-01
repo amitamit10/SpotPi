@@ -189,7 +189,7 @@ def _sp_access_token() -> str:
 
 
 def _sp_api(path: str, method: str = "GET", body: dict[str, Any] | None = None) -> dict[str, Any]:
-    """Call the Spotify Web API and return parsed JSON (or {} for 204)."""
+    """Call the Spotify Web API and return parsed JSON (or {} for 204/non-JSON bodies)."""
     access = _sp_access_token()
     headers = {"Authorization": f"Bearer {access}"}
     data = None
@@ -205,7 +205,15 @@ def _sp_api(path: str, method: str = "GET", body: dict[str, Any] | None = None) 
     try:
         with urllib.request.urlopen(req, timeout=10) as resp:
             raw = resp.read()
-            return json.loads(raw) if raw else {}
+            if not raw:
+                return {}
+            try:
+                return json.loads(raw)
+            except json.JSONDecodeError:
+                # Player-mutation endpoints (play/pause/next/previous/...)
+                # sometimes return 200 with an opaque non-JSON body instead
+                # of the documented 204 No Content — treat as success.
+                return {}
     except urllib.error.HTTPError as exc:
         if exc.code == 204:
             return {}
