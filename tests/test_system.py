@@ -28,9 +28,14 @@ class SystemParsingTests(unittest.TestCase):
         self.assertEqual(parse_amixer_volume(output), 51)
 
 
-def _config(alsa_mixer_device: str, timeout: int = 10) -> dict:
+def _config(alsa_mixer_device: str, alsa_mixer_control: str = "PCM", timeout: int = 10) -> dict:
     return {
-        "audio": {"alsa_mixer_device": alsa_mixer_device, "device_selection": "manual", "device": alsa_mixer_device},
+        "audio": {
+            "alsa_mixer_device": alsa_mixer_device,
+            "alsa_mixer_control": alsa_mixer_control,
+            "device_selection": "manual",
+            "device": alsa_mixer_device,
+        },
         "stability": {"command_timeout_seconds": timeout},
     }
 
@@ -59,6 +64,30 @@ class MixerDeviceFallbackTests(unittest.TestCase):
 
         with patch("spotpi.system.run_command", side_effect=fake_run_command):
             self.assertEqual(mixer_device(_config("hw:1")), "hw:1")
+
+    def test_fallback_prefers_card_with_matching_control_name(self) -> None:
+        """Even if an earlier card responds, prefer the card that actually
+        exposes the configured control (e.g. a softvol control living on the
+        real DAC's CTL) over the first card that merely answers scontrols —
+        picking the wrong card would silently control the wrong output."""
+        aplay_output = (
+            "card 0: Headphones [bcm2835 Headphones], device 0: bcm2835 Headphones [bcm2835 Headphones]\n"
+            "card 1: ICUSBAUDIO7D [ICUSBAUDIO7D], device 0: USB Audio [USB Audio]\n"
+        )
+
+        def fake_run_command(args: list[str], timeout: int = 10) -> CommandResult:
+            if args[:2] == ["aplay", "-l"]:
+                return CommandResult(True, 0, aplay_output, "", args)
+            if args[:3] == ["amixer", "-D", "spotpi_vol"]:
+                return CommandResult(False, 1, "", "Invalid CTL spotpi_vol", args)
+            if args[:3] == ["amixer", "-D", "hw:0"]:
+                return CommandResult(True, 0, "Simple mixer control 'PCM',0\n", "", args)
+            if args[:3] == ["amixer", "-D", "hw:1"]:
+                return CommandResult(True, 0, "Simple mixer control 'Speaker',0\nSimple mixer control 'SpotPi',0\n", "", args)
+            raise AssertionError(f"unexpected command: {args}")
+
+        with patch("spotpi.system.run_command", side_effect=fake_run_command):
+            self.assertEqual(mixer_device(_config("spotpi_vol", "SpotPi")), "hw:1")
 
 
 if __name__ == "__main__":

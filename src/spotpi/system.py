@@ -224,15 +224,29 @@ def _probe_fallback_mixer_device(config: dict[str, Any]) -> str:
     """Find a working ALSA CTL device by scanning detected hardware cards.
 
     Used when the configured mixer device doesn't exist (e.g. a PCM-only
-    softvol alias with no matching control), so volume control degrades
-    gracefully instead of failing outright.
+    softvol alias with no matching CTL device of that name). A card can
+    expose the configured control under its own hw:N CTL even when the
+    named CTL device itself is bogus, so prefer a card whose scontrols
+    output contains the configured control name — otherwise a naive
+    "first card that responds" pick can land on the wrong physical
+    output (e.g. a headphone jack instead of the USB DAC actually wired
+    for playback).
     """
     timeout = command_timeout(config)
+    wanted_control = config["audio"]["alsa_mixer_control"]
     hardware = run_command(["aplay", "-l"], timeout=timeout)
+    working: list[tuple[str, str]] = []
     for entry in parse_aplay_hardware(hardware.stdout):
         candidate = f"hw:{entry['card']}"
-        if _ctl_device_works(candidate, timeout):
-            return candidate
+        result = run_command(["amixer", "-D", candidate, "scontrols"], timeout=timeout)
+        if result.ok and result.stdout.strip():
+            working.append((candidate, result.stdout))
+    if wanted_control:
+        for candidate, scontrols in working:
+            if f"'{wanted_control}'" in scontrols:
+                return candidate
+    if working:
+        return working[0][0]
     return "default"
 
 
