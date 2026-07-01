@@ -6,6 +6,20 @@ The web UI uses a small JSON API. Default host and port:
 http://<raspberry-pi-ip>:8080
 ```
 
+## Authentication
+
+`GET /api/schema` and `GET /api/health` are always public. All other
+endpoints are gated by `web.auth_mode`:
+
+- `none` (default) — no auth required.
+- `pin` — send the configured PIN in the `X-SpotPi-Pin` header. An empty PIN
+  is treated as auth disabled.
+
+Independent of `auth_mode`, if `web.api_key` is set in settings, any request
+carrying `X-Api-Key: <key>` is authorized. This is meant for programmatic
+clients (e.g. an AI assistant) so they don't need the PIN shared with the
+web UI.
+
 ## Settings
 
 `GET /api/schema`
@@ -62,13 +76,25 @@ Returns ALSA hardware devices, logical devices, and mixer controls.
 
 Returns the configured mixer state.
 
+`GET /api/audio/volume`
+
+Returns `{ "volume_percent": 40, "volume_range_db": 60 }`.
+
 `POST /api/audio/volume`
 
-Sets ALSA mixer volume.
+Sets ALSA mixer volume. Accepts either key.
 
 ```json
-{ "percent": 40 }
+{ "volume_percent": 40 }
 ```
+
+`POST /api/audio/volume/up` / `POST /api/audio/volume/down`
+
+Adjust volume by 5 percentage points.
+
+If the configured mixer device doesn't expose ALSA controls (e.g. a stale
+config pointing at a removed device), these endpoints probe detected
+hardware cards and fall back to the first one with a working control.
 
 `POST /api/diagnostics/test-sound`
 
@@ -147,6 +173,21 @@ Requires connecting a Spotify account from the dashboard (Client ID + PKCE OAuth
 `GET /api/spotify/saved?id=<track_id>` — `{ "saved": true|false }` (Liked Songs)
 
 `POST /api/spotify/save` — body `{ "id": "<track_id>", "saved": true|false }`
+
+### `/api/player/*` — external client aliases
+
+Same Spotify proxy as above, under simpler paths for programmatic clients
+that expect a fixed shape (e.g. an AI assistant). Requires an active
+Spotify Connect session — Spotify returns an error if nothing is playing
+on this device.
+
+`POST /api/player/play` / `POST /api/player/pause`
+
+`POST /api/player/next` / `POST /api/player/previous`
+
+`POST /api/player/volume` — body `{ "volume_percent": 50 }` (Spotify-side volume, separate from `/api/audio/volume`'s ALSA mixer)
+
+`GET /api/player/state` — `{ "is_playing": true, "progress_ms": 45000, "track": { "name": ..., "artist": ..., "album": ..., "cover_url": ... } }`. `track` is `null` when nothing is loaded.
 
 ## Updates
 

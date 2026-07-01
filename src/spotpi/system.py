@@ -215,13 +215,39 @@ def pcm_to_ctl_device(device: str) -> str:
     return d
 
 
+def _ctl_device_works(device: str, timeout: int) -> bool:
+    result = run_command(["amixer", "-D", device, "scontrols"], timeout=timeout)
+    return result.ok and bool(result.stdout.strip())
+
+
+def _probe_fallback_mixer_device(config: dict[str, Any]) -> str:
+    """Find a working ALSA CTL device by scanning detected hardware cards.
+
+    Used when the configured mixer device doesn't exist (e.g. a PCM-only
+    softvol alias with no matching control), so volume control degrades
+    gracefully instead of failing outright.
+    """
+    timeout = command_timeout(config)
+    hardware = run_command(["aplay", "-l"], timeout=timeout)
+    for entry in parse_aplay_hardware(hardware.stdout):
+        candidate = f"hw:{entry['card']}"
+        if _ctl_device_works(candidate, timeout):
+            return candidate
+    return "default"
+
+
 def mixer_device(config: dict[str, Any]) -> str:
     audio = config["audio"]
+    candidate: str | None = None
     if audio["alsa_mixer_device"]:
-        return pcm_to_ctl_device(audio["alsa_mixer_device"])
-    if audio["device_selection"] == "manual":
-        return pcm_to_ctl_device(audio["device"])
-    return "default"
+        candidate = pcm_to_ctl_device(audio["alsa_mixer_device"])
+    elif audio["device_selection"] == "manual":
+        candidate = pcm_to_ctl_device(audio["device"])
+    if candidate is None or candidate == "default":
+        return "default"
+    if _ctl_device_works(candidate, command_timeout(config)):
+        return candidate
+    return _probe_fallback_mixer_device(config)
 
 
 def mixer_controls(config: dict[str, Any]) -> dict[str, Any]:

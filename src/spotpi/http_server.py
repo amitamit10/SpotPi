@@ -463,6 +463,9 @@ class RequestHandler(BaseHTTPRequestHandler):
             return
         config = load_config()
         web = config["web"]
+        api_key = web.get("api_key", "")
+        if api_key and hmac.compare_digest(self.headers.get("X-Api-Key", ""), api_key):
+            return
         if web["auth_mode"] == "none":
             return
         if web["auth_mode"] == "pin":
@@ -518,10 +521,22 @@ class RequestHandler(BaseHTTPRequestHandler):
                         set_mixer_volume(config, spotify_vol)
                         state["volume_percent"] = spotify_vol
             return state
+        if method == "GET" and path == "/api/audio/volume":
+            state = mixer_state(config)
+            return {
+                "volume_percent": state.get("volume_percent"),
+                "volume_range_db": config["volume"]["volume_range_db"],
+            }
         if method == "POST" and path == "/api/audio/volume":
             payload = self.read_json()
+            percent = int(payload.get("volume_percent", payload.get("percent", 0)))
             _stamp_ui_vol()
-            return set_mixer_volume(config, int(payload.get("percent", 0))).as_dict()
+            return set_mixer_volume(config, percent).as_dict()
+        if method == "POST" and path in ("/api/audio/volume/up", "/api/audio/volume/down"):
+            current = mixer_state(config).get("volume_percent") or 0
+            step = 5 if path.endswith("/up") else -5
+            _stamp_ui_vol()
+            return set_mixer_volume(config, current + step).as_dict()
         if method == "GET" and path == "/api/logs":
             lines = int(query.get("lines", [config["diagnostics"]["log_lines"]])[0])
             target = query.get("target", ["spotify"])[0]
@@ -696,6 +711,42 @@ class RequestHandler(BaseHTTPRequestHandler):
             wanted = bool(payload.get("saved", True))
             _sp_api(f"/me/tracks?ids={track_id}", "PUT" if wanted else "DELETE")
             return {"id": track_id, "saved": wanted}
+        # /api/player/* — same Spotify proxy as /api/spotify/*, under the path
+        # shape expected by external API clients (e.g. an AI assistant).
+        if method == "POST" and path == "/api/player/play":
+            _sp_api("/me/player/play", "PUT")
+            return {"ok": True}
+        if method == "POST" and path == "/api/player/pause":
+            _sp_api("/me/player/pause", "PUT")
+            return {"ok": True}
+        if method == "POST" and path == "/api/player/next":
+            _sp_api("/me/player/next", "POST")
+            return {"ok": True}
+        if method == "POST" and path == "/api/player/previous":
+            _sp_api("/me/player/previous", "POST")
+            return {"ok": True}
+        if method == "POST" and path == "/api/player/volume":
+            payload = self.read_json()
+            percent = max(0, min(100, int(payload.get("volume_percent", 0))))
+            _sp_api(f"/me/player/volume?volume_percent={percent}", "PUT")
+            return {"ok": True}
+        if method == "GET" and path == "/api/player/state":
+            data = _sp_api("/me/player")
+            if not data:
+                return {"is_playing": False, "progress_ms": 0, "track": None}
+            item = data.get("item") or {}
+            images = (item.get("album") or {}).get("images") or []
+            track = {
+                "name": item.get("name", ""),
+                "artist": ", ".join(a.get("name", "") for a in item.get("artists", [])),
+                "album": (item.get("album") or {}).get("name", ""),
+                "cover_url": images[0]["url"] if images else "",
+            } if item else None
+            return {
+                "is_playing": bool(data.get("is_playing")),
+                "progress_ms": data.get("progress_ms") or 0,
+                "track": track,
+            }
         raise ApiError(HTTPStatus.NOT_FOUND, "Not found")
 
     def _run_update(self) -> dict[str, Any]:

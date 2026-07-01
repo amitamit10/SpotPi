@@ -18,6 +18,7 @@ DEFAULT_CONFIG = {
         "theme": "system",
         "accent_color": "#1ed760",
         "spotify_client_id": "",
+        "api_key": "",
     },
     "audio": {
         "backend": "alsa",
@@ -160,6 +161,7 @@ CONFIG_SCHEMA = {
         {"key": "theme", "label": "Theme", "type": "enum", "choices": ["system", "light", "dark"]},
         {"key": "accent_color", "label": "Accent color", "type": "string", "format": "color"},
         {"key": "spotify_client_id", "label": "Spotify Client ID (for skip/queue)", "type": "string"},
+        {"key": "api_key", "label": "API key (for programmatic access)", "type": "secret"},
     ],
     "audio": [
         {
