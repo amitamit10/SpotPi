@@ -100,6 +100,36 @@ hardware cards and fall back to the first one with a working control.
 
 Runs the configured test sound command.
 
+## Equalizer
+
+Requires the ALSA equal plugin (`libasound2-plugin-equal`) at runtime. When
+the plugin is absent, `available` is `false` and all operations degrade
+gracefully (settings are saved but nothing is applied).
+
+`GET /api/equalizer`
+
+Returns availability, enabled state, active preset, and per-band state.
+Each band carries the config value (`db`), the live hardware percentage
+(`hw_percent`, or `null` when unavailable), and its ALSA control name.
+
+`PUT /api/equalizer`
+
+Saves the `equalizer` config section and applies it to the ALSA equal
+plugin immediately when enabled and available.
+
+```json
+{ "equalizer": { "enabled": true, "preset": "rock", "band_31hz_db": 5 } }
+```
+
+`POST /api/equalizer/reset`
+
+Resets all bands to 0 dB and the preset to `flat`.
+
+`POST /api/equalizer/apply`
+
+Applies the current saved bands to the ALSA equal plugin. Returns
+`{ "ok": false, "error": ... }` when the plugin is unavailable.
+
 ## Services
 
 `POST /api/service/spotify/start`

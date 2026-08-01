@@ -340,6 +340,103 @@ def set_mixer_volume(config: dict[str, Any], percent: int) -> CommandResult:
     )
 
 
+_EQ_BANDS: list[tuple[str, str, str]] = [
+    ("00. 31Hz",  "band_31hz_db",    "31Hz"),
+    ("01. 63Hz",  "band_63hz_db",    "63Hz"),
+    ("02. 125Hz", "band_125hz_db",   "125Hz"),
+    ("03. 250Hz", "band_250hz_db",   "250Hz"),
+    ("04. 500Hz", "band_500hz_db",   "500Hz"),
+    ("05. 1kHz",  "band_1000hz_db",  "1kHz"),
+    ("06. 2kHz",  "band_2000hz_db",  "2kHz"),
+    ("07. 4kHz",  "band_4000hz_db",  "4kHz"),
+    ("08. 8kHz",  "band_8000hz_db",  "8kHz"),
+    ("09. 16kHz", "band_16000hz_db", "16kHz"),
+]
+
+
+def _db_to_alsa_percent(db: int | float) -> int:
+    """Convert dB (-12 to +12) to ALSA equal percentage (0-100), where 50% = 0 dB."""
+    return max(0, min(100, round((float(db) + 12) / 24 * 100)))
+
+
+def _parse_amixer_eq_bands(output: str) -> dict[str, int]:
+    """Parse amixer scontents output and return control→percentage mapping."""
+    percents: dict[str, int] = {}
+    current_control: str | None = None
+    for line in output.splitlines():
+        stripped = line.strip()
+        m = re.match(r"^Simple mixer control '(.+?)'", stripped)
+        if m:
+            current_control = m.group(1)
+            continue
+        if current_control and "%" in stripped:
+            matches = re.findall(r"\[(\d+)%\]", stripped)
+            if matches:
+                percents[current_control] = int(matches[0])
+    return percents
+
+
+def eq_available() -> bool:
+    """Return True if the ALSA equal plugin responds."""
+    result = run_command(["amixer", "-D", "equal", "scontents"], timeout=5)
+    return result.ok and "31Hz" in result.stdout
+
+
+def eq_state(config: dict[str, Any]) -> dict[str, Any]:
+    """Return EQ availability, enabled state, and per-band dB values."""
+    available = eq_available()
+    eq_cfg = config.get("equalizer", {})
+    bands: list[dict[str, Any]] = []
+
+    hw_percents: dict[str, int] = {}
+    if available:
+        result = run_command(["amixer", "-D", "equal", "scontents"], timeout=command_timeout(config))
+        hw_percents = _parse_amixer_eq_bands(result.stdout)
+
+    for alsa_name, config_key, freq_label in _EQ_BANDS:
+        raw_pct = hw_percents.get(alsa_name)
+        hw_db = round(raw_pct / 100 * 24 - 12) if raw_pct is not None else None
+        bands.append({
+            "freq":        freq_label,
+            "config_key":  config_key,
+            "amixer_name": alsa_name,
+            "db":          int(hw_db) if hw_db is not None else int(eq_cfg.get(config_key, 0)),
+            "hw_percent":  raw_pct,
+        })
+
+    return {
+        "available": available,
+        "enabled":   bool(eq_cfg.get("enabled", False)),
+        "preset":    str(eq_cfg.get("preset", "flat")),
+        "bands":     bands,
+    }
+
+
+def apply_eq_from_config(config: dict[str, Any]) -> list[CommandResult]:
+    """Apply all EQ bands stored in config to the ALSA equal plugin."""
+    eq_cfg = config.get("equalizer", {})
+    results: list[CommandResult] = []
+    for alsa_name, config_key, _ in _EQ_BANDS:
+        db_val = int(eq_cfg.get(config_key, 0))
+        percent = _db_to_alsa_percent(db_val)
+        results.append(run_command(
+            ["amixer", "-D", "equal", "sset", alsa_name, f"{percent}%"],
+            timeout=command_timeout(config),
+        ))
+    return results
+
+
+def reset_eq(config: dict[str, Any]) -> list[CommandResult]:
+    """Reset all EQ bands to 0 dB (50%) on the ALSA equal plugin."""
+    results: list[CommandResult] = []
+    for alsa_name, _, _ in _EQ_BANDS:
+        results.append(run_command(
+            ["amixer", "-D", "equal", "sset", alsa_name, "50%"],
+            timeout=command_timeout(config),
+        ))
+    return results
+
+
 def test_sound(config: dict[str, Any]) -> CommandResult:
     diagnostics = config["diagnostics"]
     command = diagnostics["test_sound_command"]

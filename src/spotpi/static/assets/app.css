@@ -1008,3 +1008,194 @@ button:disabled { cursor: wait; opacity: .55; }
 /* Services panel state colours */
 .svc-ok   { color: var(--accent); font-weight: 600; }
 .svc-warn { color: var(--warn);   font-weight: 600; }
+
+/* ── Equalizer ──────────────────────────────────────────────────────────── */
+.eq-enable-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 0 14px;
+  border-bottom: 1px solid var(--line);
+  margin-bottom: 14px;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text);
+}
+.eq-status-note {
+  font-size: 12px;
+  color: var(--text-3);
+  background: var(--surface-2);
+  border-radius: var(--radius-sm);
+  padding: 8px 12px;
+  margin-bottom: 14px;
+  border: 1px solid var(--line);
+}
+.eq-status-note--ok   { color: var(--ok); border-color: var(--accent-soft); }
+.eq-status-note--warn { color: var(--warn); border-color: rgba(245,185,66,.25); }
+
+.eq-presets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 20px;
+}
+.eq-preset-btn {
+  font-size: 12px;
+  padding: 4px 10px;
+  border-radius: 99px;
+  border: 1px solid var(--line-2);
+  background: var(--surface-2);
+  color: var(--text-2);
+  cursor: pointer;
+  transition: background .15s, color .15s, border-color .15s;
+}
+.eq-preset-btn:hover { background: var(--surface-3); color: var(--text); }
+.eq-preset-btn.active {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.eq-grid {
+  display: flex;
+  gap: 10px;
+  justify-content: space-between;
+  align-items: flex-end;
+  padding: 4px 0 8px;
+  overflow-x: auto;
+}
+.eq-band {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+  flex: 1;
+  min-width: 28px;
+}
+.eq-db-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text);
+  min-width: 28px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+.eq-track-wrap {
+  position: relative;
+  width: 28px;
+  height: 150px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.eq-slider {
+  position: absolute;
+  width: 150px;
+  height: 6px;
+  transform: rotate(-90deg);
+  cursor: pointer;
+  accent-color: var(--accent);
+  margin: 0;
+  padding: 0;
+  -webkit-appearance: none;
+  appearance: none;
+  background: transparent;
+}
+.eq-slider::-webkit-slider-runnable-track {
+  height: 4px;
+  border-radius: 2px;
+  background: var(--line-2);
+}
+.eq-slider::-moz-range-track {
+  height: 4px;
+  border-radius: 2px;
+  background: var(--line-2);
+}
+.eq-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--accent);
+  margin-top: -6px;
+  cursor: pointer;
+  box-shadow: 0 0 0 3px var(--accent-soft);
+  transition: box-shadow .15s;
+}
+.eq-slider::-webkit-slider-thumb:hover { box-shadow: 0 0 0 5px var(--accent-soft); }
+.eq-slider::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--accent);
+  border: none;
+  cursor: pointer;
+}
+.eq-freq-label {
+  font-size: 10px;
+  color: var(--text-3);
+  text-align: center;
+}
+.eq-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+}
+
+/* ── Calibration ────────────────────────────────────────────────────────── */
+.cal-info {
+  font-size: 13px;
+  color: var(--text-2);
+  background: var(--surface-2);
+  border-radius: var(--radius-sm);
+  padding: 12px 14px;
+  margin-bottom: 18px;
+  border: 1px solid var(--line);
+  line-height: 1.5;
+}
+.cal-field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 14px 0;
+  border-bottom: 1px solid var(--line);
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text);
+}
+.cal-field:last-of-type { border-bottom: none; }
+.cal-field label { color: var(--text); font-weight: 500; }
+.cal-slider-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+.cal-slider {
+  flex: 1;
+  accent-color: var(--accent);
+  cursor: pointer;
+  height: 6px;
+}
+.cal-db-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--accent);
+  min-width: 70px;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.cal-actions {
+  display: flex;
+  gap: 10px;
+  padding-top: 18px;
+  margin-top: 6px;
+}
+
+@media (max-width: 600px) {
+  .eq-grid { gap: 4px; }
+  .eq-track-wrap { height: 120px; width: 24px; }
+  .eq-slider { width: 120px; }
+  .eq-db-label, .eq-freq-label { font-size: 9px; }
+}
