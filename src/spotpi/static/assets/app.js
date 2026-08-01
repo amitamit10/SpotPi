@@ -987,6 +987,15 @@ for (const button of document.querySelectorAll("[data-service-action]")) {
   button.addEventListener("click", () => serviceAction(button.dataset.serviceTarget, button.dataset.serviceAction).catch((error) => showNotice(error.message, true)));
 }
 
+// Tapping anywhere in a .toggle row flips its checkbox (bigger mobile tap area).
+// Delegated so it also covers dynamically rendered settings + EQ/calibration.
+document.addEventListener("click", (e) => {
+  const row = e.target.closest(".toggle");
+  if (!row) return;
+  const box = row.querySelector("input[type='checkbox']");
+  if (box && e.target !== box) box.click();
+});
+
 // ── Spotify Connect OAuth flow ──────────────────────────────────────────────
 
 async function checkSpotifyConnected() {
@@ -1038,7 +1047,7 @@ function showSpotifyCallbackModal() {
         <li>Copy the full URL from your address bar and paste it below</li>
       </ol>
       <input id="spotify-callback-url" type="text" placeholder="http://127.0.0.1:${state.config?.web?.port || 8080}/?code=…"
-        style="width:100%;box-sizing:border-box;padding:8px 10px;border-radius:6px;border:1px solid #444;background:#111;color:#fff;font-size:.85rem;margin-bottom:14px">
+        style="width:100%;box-sizing:border-box;padding:8px 10px;border-radius:6px;border:1px solid #444;background:#111;color:#fff;font-size:16px;margin-bottom:14px">
       <div style="display:flex;gap:10px;justify-content:flex-end">
         <button type="button" id="spotify-callback-cancel" style="padding:8px 16px;border-radius:6px;border:1px solid #444;background:transparent;color:#aaa;cursor:pointer">Cancel</button>
         <button type="button" id="spotify-callback-complete" style="padding:8px 16px;border-radius:6px;border:none;background:#1db954;color:#000;font-weight:600;cursor:pointer">Complete</button>
@@ -1214,6 +1223,12 @@ function renderEqualizerSection() {
     grid.append(col);
   }
   form.append(grid);
+
+  // Mobile hint that the band sliders scroll horizontally
+  const scrollHint = document.createElement("div");
+  scrollHint.className = "eq-scroll-hint";
+  scrollHint.textContent = "← Swipe to see all 10 bands →";
+  form.append(scrollHint);
 
   // Action buttons
   const actions = document.createElement("div");

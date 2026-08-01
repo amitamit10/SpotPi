@@ -175,6 +175,54 @@
     dashVol.addEventListener("change", () => dashSetVol?.click());
   }
 
+  /* ── mini player (mobile, fixed above the bottom nav) ─────────── */
+  // Mirrors the full now-playing card so controls stay thumb-reachable
+  // while scrolling the dashboard or the Advanced settings. Buttons just
+  // re-dispatch clicks to the real player controls (wired by features.js).
+  const miniPlayer     = document.querySelector("#mini-player");
+  const miniArt        = document.querySelector("#mini-art");
+  const miniTitle      = document.querySelector("#mini-title");
+  const miniArtist     = document.querySelector("#mini-artist");
+  const miniPlayPause  = document.querySelector("#mini-play-pause");
+  const miniIconPlay   = document.querySelector("#mini-icon-play");
+  const miniIconPause  = document.querySelector("#mini-icon-pause");
+  const miniNext       = document.querySelector("#mini-next");
+
+  function syncMiniPlayer() {
+    if (!miniPlayer) return;
+    const card   = document.querySelector("#nowplaying-card");
+    const title  = document.querySelector("#nowplaying-title");
+    const artist = document.querySelector("#nowplaying-artist");
+    const art    = document.querySelector("#nowplaying-art");
+    const play   = document.querySelector("#play-pause");
+    const next   = document.querySelector("#skip-next");
+
+    const state = (card && card.dataset.state) || "";
+    const active = ["playing", "changed", "started", "paused"].includes(state);
+    miniPlayer.hidden = !active;
+    if (!active) return;
+
+    if (miniTitle && title)  miniTitle.textContent = title.textContent;
+    if (miniArtist && artist) miniArtist.textContent = artist.textContent;
+    if (miniArt && art) {
+      const bg = art.style.backgroundImage;
+      if (bg) miniArt.style.backgroundImage = bg;
+      else miniArt.style.backgroundImage = "";
+    }
+    if (miniPlayPause && play) {
+      miniPlayPause.disabled = play.disabled;
+      const isPlaying = document.querySelector("#icon-play")?.hidden === true;
+      if (miniIconPlay)  miniIconPlay.hidden = isPlaying;
+      if (miniIconPause) miniIconPause.hidden = !isPlaying;
+    }
+    if (miniNext && next) miniNext.disabled = next.disabled;
+  }
+
+  miniPlayPause?.addEventListener("click", () => document.querySelector("#play-pause")?.click());
+  miniNext?.addEventListener("click", () => document.querySelector("#skip-next")?.click());
+  syncMiniPlayer();
+  setInterval(syncMiniPlayer, 1000);
+
   /* ── output picker ───────────────────────────────────────────── */
   const outputPickerBtn   = document.querySelector("#output-picker");
   const outputSheet       = document.querySelector("#output-sheet");

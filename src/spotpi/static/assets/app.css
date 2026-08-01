@@ -109,6 +109,23 @@ button, input, select, textarea { font: inherit; }
 [hidden] { display: none !important; }
 .mono { font-family: 'Geist Mono', ui-monospace, "Menlo", monospace; }
 
+/* No horizontal page scroll anywhere (internal panes scroll on their own). */
+html, body { overflow-x: hidden; }
+
+/* Touch ergonomics: kill double-tap zoom on interactive bits and highlight
+   flashes; let range drags own the gesture so the page doesn't scroll. */
+button, a, [role="button"], .toggle, .sheet-item, .quick-btn, .adv-trigger,
+.output-btn, .power-toggle, .view-tab, .wizard-device-item, .quality-option,
+.sheet-close, .wizard-close, label, select, input[type="checkbox"] {
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+input[type="range"] { touch-action: none; }
+
+/* Mini player + EQ scroll hint are mobile-only additions */
+.mini-player { display: none; }
+.eq-scroll-hint { display: none; }
+
 /* ── buttons ──────────────────────────────────────────────────────────────── */
 button {
   display: inline-flex; align-items: center; gap: 6px;
@@ -150,7 +167,9 @@ button:disabled { cursor: wait; opacity: .55; }
 .topbar {
   position: sticky; top: 0; z-index: 20;
   display: flex; align-items: center; justify-content: space-between; gap: 16px;
-  padding: 14px 28px; height: 60px;
+  padding: 14px 28px;
+  padding-top: calc(14px + env(safe-area-inset-top));
+  min-height: 60px;
   background: color-mix(in oklab, var(--bg) 80%, transparent);
   border-bottom: 1px solid color-mix(in oklab, var(--line) 60%, transparent);
   backdrop-filter: blur(10px);
@@ -171,15 +190,19 @@ button:disabled { cursor: wait; opacity: .55; }
 .brand-dot { display: none; }
 
 .view-tabs {
+  position: fixed; top: 13px; left: 50%; transform: translateX(-50%);
+  z-index: 21;
   display: flex; gap: 2px;
   background: var(--surface-2);
   border: 1px solid var(--line); border-radius: 9px; padding: 3px;
 }
 .view-tab {
+  display: inline-flex; align-items: center; justify-content: center; gap: 7px;
   border: none; box-shadow: none; background: transparent; color: var(--text-3);
   min-height: 28px; padding: 0 14px; border-radius: 6px;
   font-size: 12.5px; font-weight: 600;
 }
+.view-tab-icon { flex: none; opacity: .9; }
 .view-tab:hover { background: var(--surface-3); color: var(--text); border: none; }
 .view-tab.active { background: var(--surface); color: var(--text); box-shadow: var(--shadow-sm); }
 
@@ -874,15 +897,144 @@ button:disabled { cursor: wait; opacity: .55; }
   .tab { width: auto; flex: 1 1 auto; }
 }
 @media (max-width: 600px) {
-  .topbar { padding: 12px 16px; gap: 10px; }
-  .view-tabs { order: 3; flex-basis: 100%; }
-  #dashboard-view { padding: 16px; }
-  #advanced-view  { padding: 16px; }
+  /* ── topbar: minimal brand + actions (tabs live in the bottom nav) ── */
+  .topbar {
+    padding: calc(8px + env(safe-area-inset-top)) 12px 8px;
+    min-height: 52px; gap: 8px;
+  }
+  .topbar-actions { gap: 4px; }
+  .brand-name { font-size: 15px; }
+
+  /* ── 44px+ touch targets ── */
+  button { min-height: 44px; }
+  .icon-btn { width: 44px; height: 44px; }
+  .setup-btn { height: 44px; padding: 0 14px; }
+  .playback-btn { height: 44px; padding: 0 16px; }
+  .playback-btn--icon { padding: 0 14px; }
+  .playback-btn--primary { width: 56px; height: 56px; }
+  .tool-btn { height: 44px; padding: 0 16px; font-size: 13px; }
+  .like-btn { width: 44px; height: 44px; }
+  .power-toggle { min-height: 44px; }
+  .output-btn { min-height: 48px; padding: 12px 14px; }
+  .quick-btn { min-height: 56px; }
+  .tab { min-height: 44px; }
+  .sidebar-actions button { min-height: 48px; }
+  .sheet-item { min-height: 56px; }
+  .sheet-action { min-height: 40px; height: 40px; }
+  .sleep-preset { min-height: 48px; }
+  .danger-ghost { min-height: 44px; height: 44px; }
+  .sheet-close, .wizard-close { min-height: 44px; width: 44px; }
+  .eq-preset-btn { min-height: 40px; padding: 8px 14px; font-size: 13px; }
+  .wizard-copy-btn { min-height: 0; height: 28px; }
+  .wizard-device-item { min-height: 56px; }
+  .quality-option { min-height: 60px; }
+  .wizard-footer button { min-height: 48px; }
+
+  /* ── no iOS zoom-on-focus: inputs/selects ≥ 16px ── */
+  .field input, .field select, .field textarea,
+  .profile-tools input, #log-target, #log-lines,
+  .wizard-field input, .wizard-field select {
+    font-size: 16px; min-height: 44px;
+  }
+  .toggle { min-height: 44px; cursor: pointer; }
+  .toggle input[type="checkbox"],
+  .wizard-toggle-row input[type="checkbox"] { width: 22px; height: 22px; }
+
+  /* ── sliders: fatter tracks + thumbs, drag doesn't scroll ── */
+  .vol-slider { height: 9px; }
+  .vol-slider::-webkit-slider-thumb { width: 24px; height: 24px; }
+  .vol-slider::-moz-range-thumb { width: 24px; height: 24px; }
+  .cal-slider { height: 9px; }
+
+  /* ── equalizer: tall tracks, horizontal scroll with a hint ── */
+  .eq-grid { gap: 6px; padding-bottom: 10px; scroll-snap-type: x proximity; }
+  .eq-band { min-width: 36px; flex: none; scroll-snap-align: start; }
+  .eq-track-wrap { height: 140px; width: 32px; }
+  .eq-slider { width: 140px; }
+  .eq-slider::-webkit-slider-thumb { width: 22px; height: 22px; margin-top: -9px; }
+  .eq-slider::-moz-range-thumb { width: 22px; height: 22px; }
+  .eq-db-label, .eq-freq-label { font-size: 11px; min-width: 36px; }
+  .eq-scroll-hint { display: block; }
+
+  /* ── bottom navigation (thumb-reachable, respects safe area) ── */
+  .view-tabs {
+    position: fixed; top: auto; left: 0; right: 0; bottom: 0;
+    transform: none; z-index: 40;
+    border: none; border-top: 1px solid var(--line); border-radius: 0;
+    background: color-mix(in oklab, var(--bg) 92%, transparent);
+    backdrop-filter: blur(12px);
+    padding: 6px 10px calc(6px + env(safe-area-inset-bottom));
+    gap: 4px;
+  }
+  .view-tab {
+    flex: 1; min-height: 48px; border-radius: 12px;
+    flex-direction: column; gap: 2px;
+    font-size: 12.5px; padding: 0 4px;
+  }
+  .view-tab-icon { width: 18px; height: 18px; }
+
+  /* ── views clear the fixed bottom chrome ── */
+  #dashboard-view, #advanced-view { padding-bottom: calc(126px + env(safe-area-inset-bottom)); }
+  #dashboard-view { padding: 12px; }
+  #advanced-view  { padding: 12px; }
+  .dashboard-grid { gap: 12px; }
   .sidebar-stack { grid-template-columns: 1fr; }
+
+  /* ── mini player above the bottom nav ── */
+  .mini-player {
+    display: flex; align-items: center; gap: 10px;
+    position: fixed; left: 10px; right: 10px;
+    bottom: calc(64px + env(safe-area-inset-bottom));
+    z-index: 35;
+    padding: 8px 10px;
+    background: color-mix(in oklab, var(--surface) 94%, transparent);
+    border: 1px solid var(--line); border-radius: 14px;
+    box-shadow: 0 12px 32px -12px rgba(0, 0, 0, .5);
+    backdrop-filter: blur(12px);
+  }
+  .mini-art {
+    width: 44px; height: 44px; border-radius: 9px; flex: none;
+    background: linear-gradient(135deg, var(--surface-3), var(--surface-2));
+    background-size: cover; background-position: center;
+    display: grid; place-items: center; color: var(--text-3);
+  }
+  .mini-art[style*="background-image"] svg { display: none; }
+  .mini-meta { min-width: 0; flex: 1; }
+  .mini-title { font-size: 13.5px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .mini-artist { font-size: 12px; color: var(--text-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin-top: 1px; }
+  .mini-btn {
+    width: 44px; height: 44px; min-height: 0; padding: 0; flex: none;
+    display: grid; place-items: center;
+    border-radius: 50%; background: var(--surface-2); border: 1px solid var(--line);
+    color: var(--text); box-shadow: none;
+  }
+  .mini-btn:disabled { opacity: .4; cursor: default; }
+  .mini-play { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+
+  /* ── sheets become bottom sheets ── */
+  .sheet-overlay { place-items: end center; padding: 0; }
+  .sheet {
+    max-width: 100%; border-radius: 20px 20px 0 0;
+    padding-bottom: calc(8px + env(safe-area-inset-bottom));
+  }
+  .sheet--tall { max-height: 82vh; }
+
+  /* ── dashboard cards ── */
   .now-playing { grid-template-columns: 1fr; text-align: center; }
-  .now-art { margin: 0 auto; width: 160px; height: 160px; }
-  .settings-form, .status-grid, .status-grid.compact,
-  .profile-tools, .device-row, .profile-row, .check-row,
+  .now-art { margin: 0 auto; width: 128px; height: 128px; }
+  .now-playing { padding: 18px 16px; gap: 16px; }
+  .player-hero { padding: 16px 16px 14px; }
+  .player-controls { padding: 12px 16px 18px; }
+  .hero-device-name { font-size: 18px; overflow-wrap: anywhere; }
+  .now-title { font-size: clamp(18px, 5.5vw, 24px); }
+  .adv-trigger { display: none; }
+
+  /* ── status grid: 2-up on phones ── */
+  .status-grid, .status-grid.compact { grid-template-columns: 1fr 1fr; }
+  .status-item { padding: 10px 12px; }
+
+  /* ── stacked forms ── */
+  .settings-form, .profile-tools, .device-row, .profile-row, .check-row,
   .mixer, .range-row { grid-template-columns: 1fr; }
   .wizard-quality-grid { grid-template-columns: 1fr 1fr 1fr; }
 }
@@ -1191,11 +1343,4 @@ button:disabled { cursor: wait; opacity: .55; }
   gap: 10px;
   padding-top: 18px;
   margin-top: 6px;
-}
-
-@media (max-width: 600px) {
-  .eq-grid { gap: 4px; }
-  .eq-track-wrap { height: 120px; width: 24px; }
-  .eq-slider { width: 120px; }
-  .eq-db-label, .eq-freq-label { font-size: 9px; }
 }
