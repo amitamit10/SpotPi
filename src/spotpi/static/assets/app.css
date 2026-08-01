@@ -109,8 +109,14 @@ button, input, select, textarea { font: inherit; }
 [hidden] { display: none !important; }
 .mono { font-family: 'Geist Mono', ui-monospace, "Menlo", monospace; }
 
-/* No horizontal page scroll anywhere (internal panes scroll on their own). */
-html, body { overflow-x: hidden; }
+/* No horizontal page scroll anywhere (internal panes scroll on their own).
+   Use `clip`, not `hidden`: `overflow-x: hidden` on html+body makes both
+   scroll containers, which traps vertical scrolling on iOS/Android.
+   `clip` clips horizontally WITHOUT creating a scroll container, so the
+   page still grows and the viewport scrolls vertically. `hidden` on html
+   alone is the safe fallback for browsers without `clip`. */
+html { overflow-x: hidden; overflow-x: clip; }
+body { overflow-x: clip; }
 
 /* Touch ergonomics: kill double-tap zoom on interactive bits and highlight
    flashes; let range drags own the gesture so the page doesn't scroll. */
