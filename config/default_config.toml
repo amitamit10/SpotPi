@@ -37,6 +37,25 @@ normalisation_gain_type = "auto"
 normalisation_pregain_db = 0.0
 normalisation_threshold_dbfs = -2.0
 
+[equalizer]
+enabled = false
+preset = "flat"
+band_31hz_db = 0
+band_63hz_db = 0
+band_125hz_db = 0
+band_250hz_db = 0
+band_500hz_db = 0
+band_1000hz_db = 0
+band_2000hz_db = 0
+band_4000hz_db = 0
+band_8000hz_db = 0
+band_16000hz_db = 0
+
+[calibration]
+enabled = false
+gain_db = 0.0
+reference_level_dbfs = -23.0
+
 [quality]
 bitrate_kbps = 320
 cache_enabled = true

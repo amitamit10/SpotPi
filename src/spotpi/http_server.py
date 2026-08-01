@@ -38,15 +38,20 @@ from .config import (
     restore_backup,
     save_config,
     schema_payload,
+    update_config,
 )
 from .diagnostics import doctor, system_summary
 from .history import clear_history, history_file, load_history, record_track
 from .librespot import build_librespot_args, redacted_args
 from .profiles import delete_profile, list_profiles, load_profile, save_profile
 from .system import (
+    apply_eq_from_config,
+    eq_available,
+    eq_state,
     journal_logs_for_target,
     list_audio_devices,
     mixer_state,
+    reset_eq,
     set_mixer_volume,
     status_payload,
     systemctl_target,
@@ -719,6 +724,33 @@ class RequestHandler(BaseHTTPRequestHandler):
             wanted = bool(payload.get("saved", True))
             _sp_api(f"/me/tracks?ids={track_id}", "PUT" if wanted else "DELETE")
             return {"id": track_id, "saved": wanted}
+        if method == "GET" and path == "/api/equalizer":
+            return eq_state(config)
+        if method == "PUT" and path == "/api/equalizer":
+            payload = self.read_json()
+            eq_data = payload.get("equalizer", {})
+            updated = update_config({"equalizer": eq_data})
+            if updated.get("equalizer", {}).get("enabled") and eq_available():
+                apply_eq_from_config(updated)
+            return {"ok": True, "equalizer": updated.get("equalizer", {})}
+        if method == "POST" and path == "/api/equalizer/reset":
+            flat = {
+                "preset": "flat",
+                "band_31hz_db": 0, "band_63hz_db": 0, "band_125hz_db": 0,
+                "band_250hz_db": 0, "band_500hz_db": 0, "band_1000hz_db": 0,
+                "band_2000hz_db": 0, "band_4000hz_db": 0, "band_8000hz_db": 0,
+                "band_16000hz_db": 0,
+            }
+            updated = update_config({"equalizer": flat})
+            if updated.get("equalizer", {}).get("enabled") and eq_available():
+                reset_eq(updated)
+            return {"ok": True}
+        if method == "POST" and path == "/api/equalizer/apply":
+            if not eq_available():
+                return {"ok": False, "error": "ALSA equal plugin not available — install libasound2-plugin-equal"}
+            results = apply_eq_from_config(config)
+            ok = all(r.ok for r in results)
+            return {"ok": ok, "applied": len(results)}
         # /api/player/* — same Spotify proxy as /api/spotify/*, under the path
         # shape expected by external API clients (e.g. an AI assistant).
         if method == "POST" and path == "/api/player/play":
