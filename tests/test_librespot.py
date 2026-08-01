@@ -39,6 +39,22 @@ class LibrespotTests(unittest.TestCase):
         config["device"]["append_hostname"] = True
         self.assertTrue(resolved_device_name(config).startswith("SpotPi ("))
 
+    def test_calibration_gain_is_summed_into_pregain_when_enabled(self) -> None:
+        config = deep_copy_defaults()
+        config["calibration"]["enabled"] = True
+        config["calibration"]["gain_db"] = 3.5
+        args = build_librespot_args(config)
+        pregain_index = args.index("--normalisation-pregain")
+        self.assertEqual(args[pregain_index + 1], "3.5")
+
+    def test_calibration_gain_ignored_when_disabled(self) -> None:
+        config = deep_copy_defaults()
+        config["calibration"]["enabled"] = False
+        config["calibration"]["gain_db"] = 9.0
+        args = build_librespot_args(config)
+        pregain_index = args.index("--normalisation-pregain")
+        self.assertEqual(args[pregain_index + 1], "0.0")
+
 
 if __name__ == "__main__":
     unittest.main()
